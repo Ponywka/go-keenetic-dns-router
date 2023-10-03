@@ -50,7 +50,7 @@ type KeeneticClient struct {
 	host     string
 }
 
-func (u *KeeneticClient) apiRequest(method string, path string, data any) (resp *http.Response, body map[string]interface{}, err error) {
+func (u *KeeneticClient) apiRequest(method string, path string, data any) (resp *http.Response, body any, err error) {
 	var cookieStr string
 	for key, val := range u.cookies {
 		// TODO: Escape symbols
