@@ -133,6 +133,22 @@ func (u *KeeneticClient) Auth(login string, password string) (res bool, err erro
 	return
 }
 
+func (u *KeeneticClient) RCI(data any) (body any, err error) {
+	wasAuthorisationAttempt := false
+	for {
+		resp, body, err := u.apiRequest("POST", "rci/", data)
+		if resp.StatusCode != 401 || wasAuthorisationAttempt {
+			// TODO: Error when unauthorized
+			return body, err
+		}
+		wasAuthorisationAttempt = true
+		ok, err := u.Auth(u.login, u.password)
+		if !ok {
+			return body, err
+		}
+	}
+}
+
 func NewKeeneticClient(host string) KeeneticClient {
 	return KeeneticClient{
 		host: host,

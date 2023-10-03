@@ -15,11 +15,22 @@ type KeeneticUpdater struct {
 func (u *KeeneticUpdater) Tick() bool {
 	log.Println("Tick")
 	k := keenetic.NewKeeneticClient(u.URL)
-	res, err := k.Auth(u.Login, u.Password)
+	ok, err := k.Auth(u.Login, u.Password)
 	if err != nil {
 		log.Printf("%+v", err)
+		return false
 	}
-	log.Printf("%+v", res)
+	if !ok {
+		return false
+	}
+	body, err := k.RCI([]interface{}{
+		map[string]interface{}{
+			"show": map[string]interface{}{
+				"interface": map[string]interface{}{},
+			},
+		},
+	})
+	log.Printf("%+v", body)
 	log.Println("EndTick")
 	return true
 }
