@@ -23,13 +23,11 @@ func (u *KeeneticUpdater) Tick() bool {
 	if !ok {
 		return false
 	}
-	body, err := k.RCI([]interface{}{
-		map[string]interface{}{
-			"show": map[string]interface{}{
-				"interface": map[string]interface{}{},
-			},
-		},
+	var list []map[string]interface{}
+	k.ToRCIQueryList(&list, "show.interface", []map[string]interface{}{
+		{"name": "Dsl0"},
 	})
+	body, err := k.RCI(list)
 	log.Printf("%+v", body)
 	log.Println("EndTick")
 	return true

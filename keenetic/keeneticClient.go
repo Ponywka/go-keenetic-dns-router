@@ -9,6 +9,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"strings"
 )
 
 func apiSyncRequest(method string, url string, data []byte, headers map[string]string) (resp *http.Response, body []byte, err error) {
@@ -147,6 +148,27 @@ func (u *KeeneticClient) RCI(data any) (body any, err error) {
 			return body, err
 		}
 	}
+}
+
+func (u *KeeneticClient) ToRCIQueryList(list *[]map[string]interface{}, path string, data any) (ok bool, err error) {
+	pathSplitted := strings.Split(path, ".")
+	if data == nil {
+		data = map[string]interface{}{}
+	}
+	outData := map[string]interface{}{}
+	for i := len(pathSplitted) - 1; i >= 0; i-- {
+		if len(pathSplitted[i]) == 0 {
+			// TODO: Error
+			return
+		}
+		if i == len(pathSplitted)-1 {
+			outData = map[string]interface{}{pathSplitted[i]: data}
+		} else {
+			outData = map[string]interface{}{pathSplitted[i]: outData}
+		}
+	}
+	*list = append(*list, outData)
+	return
 }
 
 func NewKeeneticClient(host string) KeeneticClient {
