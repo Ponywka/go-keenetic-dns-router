@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"strings"
 )
@@ -104,20 +103,17 @@ func (u *KeeneticClient) checkAuth() (res bool, err error) {
 }
 
 func (u *KeeneticClient) Auth(login string, password string) (res bool, err error) {
-	log.Printf("Reset auth")
 	authData, err := u.resetAuth()
 	if err != nil {
 		return
 	}
 
-	log.Printf("Generating hash")
 	var passHash string
 	passHash = fmt.Sprintf("%s:%s:%s", login, authData.Realm, password)
 	passHash = fmt.Sprintf("%x", md5.Sum([]byte(passHash)))
 	passHash = fmt.Sprintf("%s%s", authData.Challenge, passHash)
 	passHash = fmt.Sprintf("%x", sha256.Sum256([]byte(passHash)))
 
-	log.Printf("Sending request")
 	resp, _, err := u.apiRequest("POST", "auth", map[string]string{
 		"login":    login,
 		"password": passHash,
@@ -126,7 +122,6 @@ func (u *KeeneticClient) Auth(login string, password string) (res bool, err erro
 		return
 	}
 
-	log.Printf("Result")
 	res = resp.StatusCode == 200
 	u.login = login
 	u.password = password
