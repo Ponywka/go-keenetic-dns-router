@@ -133,7 +133,7 @@ func (u *KeeneticClient) Auth(login string, password string) (res bool, err erro
 	return
 }
 
-func (u *KeeneticClient) RCI(data any) (body any, err error) {
+func (u *KeeneticClient) Rci(data any) (body any, err error) {
 	wasAuthorisationAttempt := false
 	for {
 		resp, body, err := u.apiRequest("POST", "rci/", data)
@@ -149,7 +149,7 @@ func (u *KeeneticClient) RCI(data any) (body any, err error) {
 	}
 }
 
-func (u *KeeneticClient) ToRCIQueryList(list *[]map[string]interface{}, path string, data any) (ok bool, err error) {
+func (u *KeeneticClient) ToRciQueryList(list *[]map[string]interface{}, path string, data any) (ok bool, err error) {
 	pathSplitted := strings.Split(path, ".")
 	if data == nil {
 		data = map[string]interface{}{}
