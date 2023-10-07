@@ -54,7 +54,7 @@ func (u *DomainRouteUpdater) resolveDomain(domain *routes.DomainRouteExtended) b
 	return true
 }
 
-func (u *DomainRouteUpdater) Tick() bool {
+func (u *DomainRouteUpdater) Tick() (bool, error) {
 	log.Println("Tick")
 	for index := range u.Domains {
 		domain := &u.Domains[index]
@@ -68,5 +68,5 @@ func (u *DomainRouteUpdater) Tick() bool {
 		}
 	}
 	log.Println("EndTick")
-	return true
+	return true, nil
 }

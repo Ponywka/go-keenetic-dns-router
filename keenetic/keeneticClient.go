@@ -6,6 +6,8 @@ import (
 	"crypto/sha256"
 	"encoding/json"
 	"fmt"
+	"github.com/Ponywka/go-keenetic-dns-router/errors/contextedError"
+	"github.com/Ponywka/go-keenetic-dns-router/errors/parentError"
 	"io"
 	"net/http"
 	"strings"
@@ -15,6 +17,8 @@ func apiSyncRequest(method string, url string, data []byte, headers map[string]s
 	client := &http.Client{}
 	req, err := http.NewRequest(method, url, bytes.NewBuffer(data))
 	if err != nil {
+		err = contextedError.NewFromExists(&err, "http.NewRequest")
+		err = parentError.New("http creating error", &err)
 		return
 	}
 	for key, val := range headers {
@@ -22,12 +26,19 @@ func apiSyncRequest(method string, url string, data []byte, headers map[string]s
 	}
 	resp, err = client.Do(req)
 	if err != nil {
+		err = contextedError.NewFromExists(&err, "client.Do")
+		err = parentError.New("client creating error", &err)
 		return
 	}
 	defer func() {
 		_ = resp.Body.Close()
 	}()
 	body, err = io.ReadAll(resp.Body)
+	if err != nil {
+		err = contextedError.NewFromExists(&err, "io.ReadAll")
+		err = parentError.New("body reading error", &err)
+		return
+	}
 	return
 }
 
@@ -64,11 +75,14 @@ func (u *KeeneticClient) apiRequest(method string, path string, data any) (resp 
 
 	jsonData, err := json.Marshal(data)
 	if err != nil {
+		err = contextedError.NewFromExists(&err, "json.Marshal")
+		err = parentError.New("json encoding error", &err)
 		return
 	}
 
 	resp, outBody, err := apiSyncRequest(method, fmt.Sprintf("%s/%s", u.host, path), jsonData, headers)
 	if err != nil {
+		err = parentError.New("api requesting error", &err)
 		return
 	}
 
@@ -76,7 +90,14 @@ func (u *KeeneticClient) apiRequest(method string, path string, data any) (resp 
 		u.cookies[cookie.Name] = cookie.Value
 	}
 
-	err = json.Unmarshal(outBody, &body)
+	if len(outBody) > 0 {
+		_ = json.Unmarshal(outBody, &body)
+		if err != nil {
+			err = contextedError.NewFromExists(&err, "json.Unmarshal")
+			err = parentError.New("json decoding error", &err)
+			return
+		}
+	}
 	return
 }
 
@@ -84,6 +105,7 @@ func (u *KeeneticClient) resetAuth() (data AuthData, err error) {
 	u.cookies = make(map[string]string)
 	resp, _, err := u.apiRequest("GET", "auth", nil)
 	if err != nil {
+		err = parentError.New("api requesting error", &err)
 		return
 	}
 	data = AuthData{
@@ -96,6 +118,7 @@ func (u *KeeneticClient) resetAuth() (data AuthData, err error) {
 func (u *KeeneticClient) checkAuth() (res bool, err error) {
 	resp, _, err := u.apiRequest("GET", "auth", nil)
 	if err != nil {
+		err = parentError.New("api requesting error", &err)
 		return
 	}
 	res = resp.StatusCode == 200
@@ -105,6 +128,7 @@ func (u *KeeneticClient) checkAuth() (res bool, err error) {
 func (u *KeeneticClient) Auth(login string, password string) (res bool, err error) {
 	authData, err := u.resetAuth()
 	if err != nil {
+		err = parentError.New("auth reset error", &err)
 		return
 	}
 
@@ -119,6 +143,7 @@ func (u *KeeneticClient) Auth(login string, password string) (res bool, err erro
 		"password": passHash,
 	})
 	if err != nil {
+		err = parentError.New("auth error", &err)
 		return
 	}
 
@@ -144,7 +169,7 @@ func (u *KeeneticClient) Rci(data any) (body any, err error) {
 	}
 }
 
-func (u *KeeneticClient) ToRciQueryList(list *[]map[string]interface{}, path string, data any) (ok bool, err error) {
+func (u *KeeneticClient) ToRciQueryList(list *[]map[string]interface{}, path string, data any) error {
 	pathSplitted := strings.Split(path, ".")
 	if data == nil {
 		data = map[string]interface{}{}
@@ -152,8 +177,7 @@ func (u *KeeneticClient) ToRciQueryList(list *[]map[string]interface{}, path str
 	outData := map[string]interface{}{}
 	for i := len(pathSplitted) - 1; i >= 0; i-- {
 		if len(pathSplitted[i]) == 0 {
-			// TODO: Error
-			return
+			return contextedError.New("empty path name was detected")
 		}
 		if i == len(pathSplitted)-1 {
 			outData = map[string]interface{}{pathSplitted[i]: data}
@@ -162,7 +186,7 @@ func (u *KeeneticClient) ToRciQueryList(list *[]map[string]interface{}, path str
 		}
 	}
 	*list = append(*list, outData)
-	return
+	return nil
 }
 
 func NewKeeneticClient(host string) KeeneticClient {
