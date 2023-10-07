@@ -77,8 +77,7 @@ func (u *KeeneticClient) apiRequest(method string, path string, data any) (resp 
 		u.cookies[cookie.Name] = cookie.Value
 	}
 
-	// TODO: Catch JSON parse error
-	_ = json.Unmarshal(outBody, &body)
+	err = json.Unmarshal(outBody, &body)
 	return
 }
 
