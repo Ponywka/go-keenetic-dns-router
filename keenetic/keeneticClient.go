@@ -157,9 +157,11 @@ func (u *KeeneticClient) Rci(data any) (body any, err error) {
 	wasAuthorisationAttempt := false
 	for {
 		resp, body, err := u.apiRequest("POST", "rci/", data)
-		if resp.StatusCode != 401 || wasAuthorisationAttempt {
-			// TODO: Error when unauthorized
+		if resp.StatusCode != 401 {
 			return body, err
+		}
+		if wasAuthorisationAttempt {
+			return nil, contextedError.New("unauthorized")
 		}
 		wasAuthorisationAttempt = true
 		ok, err := u.Auth(u.login, u.password)
