@@ -53,7 +53,7 @@ func (u *Client) apiRequest(method, path string, data interface{}) (resp *http.R
 	}
 
 	if len(outBody) > 0 {
-		_ = json.Unmarshal(outBody, &body)
+		err = json.Unmarshal(outBody, &body)
 		if err != nil {
 			err = contextedError.NewFromFunc(&err, json.Unmarshal)
 			err = parentError.New("json decoding error", &err)
