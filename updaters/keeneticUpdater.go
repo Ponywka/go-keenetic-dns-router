@@ -15,7 +15,7 @@ type KeeneticUpdater struct {
 
 func (u *KeeneticUpdater) Tick() (bool, error) {
 	log.Println("Tick")
-	k := keenetic.NewKeeneticClient(u.URL)
+	k := keenetic.New(u.URL)
 	ok, err := k.Auth(u.Login, u.Password)
 	if err != nil {
 		return false, err

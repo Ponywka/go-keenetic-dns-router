@@ -16,14 +16,14 @@ type AuthData struct {
 	Challenge string
 }
 
-type KeeneticClient struct {
+type Client struct {
 	cookies  map[string]string
 	login    string
 	password string
 	host     string
 }
 
-func (u *KeeneticClient) apiRequest(method string, path string, data any) (resp *http.Response, body any, err error) {
+func (u *Client) apiRequest(method string, path string, data any) (resp *http.Response, body any, err error) {
 	var cookieStr string
 	for key, val := range u.cookies {
 		// TODO: Escape symbols
@@ -63,7 +63,7 @@ func (u *KeeneticClient) apiRequest(method string, path string, data any) (resp 
 	return
 }
 
-func (u *KeeneticClient) resetAuth() (data AuthData, err error) {
+func (u *Client) resetAuth() (data AuthData, err error) {
 	u.cookies = make(map[string]string)
 	resp, _, err := u.apiRequest("GET", "auth", nil)
 	if err != nil {
@@ -77,7 +77,7 @@ func (u *KeeneticClient) resetAuth() (data AuthData, err error) {
 	return
 }
 
-func (u *KeeneticClient) checkAuth() (res bool, err error) {
+func (u *Client) checkAuth() (res bool, err error) {
 	resp, _, err := u.apiRequest("GET", "auth", nil)
 	if err != nil {
 		err = parentError.New("api requesting error", &err)
@@ -87,7 +87,7 @@ func (u *KeeneticClient) checkAuth() (res bool, err error) {
 	return
 }
 
-func (u *KeeneticClient) Auth(login string, password string) (res bool, err error) {
+func (u *Client) Auth(login string, password string) (res bool, err error) {
 	authData, err := u.resetAuth()
 	if err != nil {
 		err = parentError.New("auth reset error", &err)
@@ -115,7 +115,7 @@ func (u *KeeneticClient) Auth(login string, password string) (res bool, err erro
 	return
 }
 
-func (u *KeeneticClient) Rci(data any) (res []interface{}, err error) {
+func (u *Client) Rci(data any) (res []interface{}, err error) {
 	wasAuthorisationAttempt := false
 	for {
 		resp, body, err := u.apiRequest("POST", "rci/", data)
@@ -143,7 +143,7 @@ func (u *KeeneticClient) Rci(data any) (res []interface{}, err error) {
 	}
 }
 
-func (u *KeeneticClient) ToRciQueryList(list *[]map[string]interface{}, path string, data any) error {
+func (u *Client) ToRciQueryList(list *[]map[string]interface{}, path string, data any) error {
 	pathSplitted := strings.Split(path, ".")
 	if data == nil {
 		data = map[string]interface{}{}
@@ -163,7 +163,7 @@ func (u *KeeneticClient) ToRciQueryList(list *[]map[string]interface{}, path str
 	return nil
 }
 
-func (u *KeeneticClient) getByRciQuery(path string, data any) (res any, err error) {
+func (u *Client) getByRciQuery(path string, data any) (res any, err error) {
 	var list []map[string]interface{}
 	err = u.ToRciQueryList(&list, path, data)
 	if err != nil {
@@ -189,7 +189,7 @@ func (u *KeeneticClient) getByRciQuery(path string, data any) (res any, err erro
 	return
 }
 
-func (u *KeeneticClient) GetInterfaceList() (res map[string]InterfaceBase, err error) {
+func (u *Client) GetInterfaceList() (res map[string]InterfaceBase, err error) {
 	body, err := u.getByRciQuery("show.interface", nil)
 	v, ok := body.(map[string]interface{})
 	if !ok {
@@ -207,8 +207,8 @@ func (u *KeeneticClient) GetInterfaceList() (res map[string]InterfaceBase, err e
 	return
 }
 
-func NewKeeneticClient(host string) KeeneticClient {
-	return KeeneticClient{
+func New(host string) Client {
+	return Client{
 		host: host,
 	}
 }
