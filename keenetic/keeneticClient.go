@@ -8,6 +8,7 @@ import (
 	"github.com/Ponywka/go-keenetic-dns-router/errors/contextedError"
 	"github.com/Ponywka/go-keenetic-dns-router/errors/parentError"
 	"net/http"
+	"reflect"
 	"strings"
 )
 
@@ -115,20 +116,30 @@ func (u *KeeneticClient) Auth(login string, password string) (res bool, err erro
 	return
 }
 
-func (u *KeeneticClient) Rci(data any) (body any, err error) {
+func (u *KeeneticClient) Rci(data any) (res []interface{}, err error) {
 	wasAuthorisationAttempt := false
 	for {
 		resp, body, err := u.apiRequest("POST", "rci/", data)
+		if err != nil {
+			return nil, parentError.New("api requesting error", &err)
+		}
 		if resp.StatusCode != 401 {
-			return body, err
+			res, ok := body.([]interface{})
+			if !ok {
+				return nil, contextedError.New("parse error")
+			}
+			return res, nil
 		}
 		if wasAuthorisationAttempt {
 			return nil, contextedError.New("unauthorized")
 		}
 		wasAuthorisationAttempt = true
 		ok, err := u.Auth(u.login, u.password)
+		if err != nil {
+			return nil, parentError.New("reauth error", &err)
+		}
 		if !ok {
-			return body, err
+			return nil, contextedError.New("reauth error")
 		}
 	}
 }
@@ -165,11 +176,10 @@ func (u *KeeneticClient) getByRciQuery(path string, data any) (res any, err erro
 		return nil, parentError.New("rci request error", &err)
 	}
 
-	resList, ok := body.([]interface{})
-	if !ok {
+	if len(body) == 0 {
 		return nil, contextedError.New("parse error")
 	}
-	res = resList[0]
+	res = body[0]
 	for _, key := range strings.Split(path, ".") {
 		v, ok := res.(map[string]interface{})
 		if !ok {
@@ -180,9 +190,41 @@ func (u *KeeneticClient) getByRciQuery(path string, data any) (res any, err erro
 	return
 }
 
-func (u *KeeneticClient) GetInterfaceList() (body any, err error) {
-	body, err = u.getByRciQuery("show.interface", nil)
-	// TODO: Convert to right type
+func convertMapToStruct(d any, s interface{}) error {
+	m, ok := d.(map[string]interface{})
+	if !ok {
+		return contextedError.New("parse error")
+	}
+	stValue := reflect.ValueOf(s).Elem()
+	sType := stValue.Type()
+	for i := 0; i < sType.NumField(); i++ {
+		field := sType.Field(i)
+		tagName := string(field.Tag.Get("json"))
+		if len(tagName) == 0 {
+			tagName = field.Name
+		}
+		if value, ok := m[tagName]; ok {
+			stValue.Field(i).Set(reflect.ValueOf(value))
+		}
+	}
+	return nil
+}
+
+func (u *KeeneticClient) GetInterfaceList() (res map[string]InterfaceBase, err error) {
+	body, err := u.getByRciQuery("show.interface", nil)
+	v, ok := body.(map[string]interface{})
+	if !ok {
+		return nil, contextedError.New("parse error")
+	}
+	res = map[string]InterfaceBase{}
+	for key, val := range v {
+		interfaceBase := *new(InterfaceBase)
+		err := convertMapToStruct(val, &interfaceBase)
+		if err != nil {
+			return nil, err
+		}
+		res[key] = interfaceBase
+	}
 	return
 }
 

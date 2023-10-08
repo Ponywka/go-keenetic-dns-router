@@ -23,11 +23,11 @@ func (u *KeeneticUpdater) Tick() (bool, error) {
 	if !ok {
 		return false, contextedError.New("login or password invalid")
 	}
-	body, err := k.GetInterfaceList()
+	interfaces, err := k.GetInterfaceList()
 	if err != nil {
 		return false, err
 	}
-	log.Printf("%+v", body)
+	log.Printf("%+v", interfaces)
 	log.Println("EndTick")
 	return true, nil
 }
