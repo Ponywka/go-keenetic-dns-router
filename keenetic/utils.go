@@ -54,7 +54,7 @@ func convertMapToStruct(d any, s interface{}) error {
 	sType := stValue.Type()
 	for i := 0; i < sType.NumField(); i++ {
 		field := sType.Field(i)
-		tagName := string(field.Tag.Get("json"))
+		tagName := field.Tag.Get("json")
 		if len(tagName) == 0 {
 			tagName = field.Name
 		}
