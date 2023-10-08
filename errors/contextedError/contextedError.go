@@ -2,6 +2,7 @@ package contextedError
 
 import (
 	"errors"
+	"reflect"
 	"runtime"
 )
 
@@ -19,6 +20,10 @@ func New(msg string) ContextedError {
 	fn := runtime.FuncForPC(pc)
 	err := errors.New(msg)
 	return NewFromExists(&err, fn.Name())
+}
+
+func NewFromFunc(err *error, i interface{}) ContextedError {
+	return ContextedError{*err, runtime.FuncForPC(reflect.ValueOf(i).Pointer()).Name()}
 }
 
 func NewFromExists(err *error, origin string) ContextedError {

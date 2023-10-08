@@ -12,7 +12,7 @@ func apiSyncRequest(method string, url string, data []byte, headers map[string]s
 	client := &http.Client{}
 	req, err := http.NewRequest(method, url, bytes.NewBuffer(data))
 	if err != nil {
-		err = contextedError.NewFromExists(&err, "http.NewRequest")
+		err = contextedError.NewFromFunc(&err, http.NewRequest)
 		err = parentError.New("http creating error", &err)
 		return
 	}
@@ -21,7 +21,7 @@ func apiSyncRequest(method string, url string, data []byte, headers map[string]s
 	}
 	resp, err = client.Do(req)
 	if err != nil {
-		err = contextedError.NewFromExists(&err, "client.Do")
+		err = contextedError.NewFromFunc(&err, client.Do)
 		err = parentError.New("client creating error", &err)
 		return
 	}
@@ -30,7 +30,7 @@ func apiSyncRequest(method string, url string, data []byte, headers map[string]s
 	}()
 	body, err = io.ReadAll(resp.Body)
 	if err != nil {
-		err = contextedError.NewFromExists(&err, "io.ReadAll")
+		err = contextedError.NewFromFunc(&err, io.ReadAll)
 		err = parentError.New("body reading error", &err)
 		return
 	}

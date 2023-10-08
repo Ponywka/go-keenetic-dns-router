@@ -38,7 +38,7 @@ func (u *KeeneticClient) apiRequest(method string, path string, data any) (resp 
 
 	jsonData, err := json.Marshal(data)
 	if err != nil {
-		err = contextedError.NewFromExists(&err, "json.Marshal")
+		err = contextedError.NewFromFunc(&err, json.Marshal)
 		err = parentError.New("json encoding error", &err)
 		return
 	}
@@ -56,7 +56,7 @@ func (u *KeeneticClient) apiRequest(method string, path string, data any) (resp 
 	if len(outBody) > 0 {
 		_ = json.Unmarshal(outBody, &body)
 		if err != nil {
-			err = contextedError.NewFromExists(&err, "json.Unmarshal")
+			err = contextedError.NewFromFunc(&err, json.Unmarshal)
 			err = parentError.New("json decoding error", &err)
 			return
 		}
