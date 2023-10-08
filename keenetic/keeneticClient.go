@@ -23,7 +23,7 @@ type Client struct {
 	host     string
 }
 
-func (u *Client) apiRequest(method string, path string, data any) (resp *http.Response, body any, err error) {
+func (u *Client) apiRequest(method, path string, data interface{}) (resp *http.Response, body interface{}, err error) {
 	var cookieStr string
 	for key, val := range u.cookies {
 		// TODO: Escape symbols
@@ -87,15 +87,14 @@ func (u *Client) checkAuth() (res bool, err error) {
 	return
 }
 
-func (u *Client) Auth(login string, password string) (res bool, err error) {
+func (u *Client) Auth(login, password string) (res bool, err error) {
 	authData, err := u.resetAuth()
 	if err != nil {
 		err = parentError.New("auth reset error", &err)
 		return
 	}
 
-	var passHash string
-	passHash = fmt.Sprintf("%s:%s:%s", login, authData.Realm, password)
+	passHash := fmt.Sprintf("%s:%s:%s", login, authData.Realm, password)
 	passHash = fmt.Sprintf("%x", md5.Sum([]byte(passHash)))
 	passHash = fmt.Sprintf("%s%s", authData.Challenge, passHash)
 	passHash = fmt.Sprintf("%x", sha256.Sum256([]byte(passHash)))
@@ -115,8 +114,8 @@ func (u *Client) Auth(login string, password string) (res bool, err error) {
 	return
 }
 
-func (u *Client) Rci(data any) (res []interface{}, err error) {
-	wasAuthorisationAttempt := false
+func (u *Client) Rci(data interface{}) (res []interface{}, err error) {
+	wasAuthorizationAttempt := false
 	for {
 		resp, body, err := u.apiRequest("POST", "rci/", data)
 		if err != nil {
@@ -129,10 +128,10 @@ func (u *Client) Rci(data any) (res []interface{}, err error) {
 			}
 			return res, nil
 		}
-		if wasAuthorisationAttempt {
+		if wasAuthorizationAttempt {
 			return nil, contextedError.New("unauthorized")
 		}
-		wasAuthorisationAttempt = true
+		wasAuthorizationAttempt = true
 		ok, err := u.Auth(u.login, u.password)
 		if err != nil {
 			return nil, parentError.New("reauth error", &err)
@@ -143,7 +142,7 @@ func (u *Client) Rci(data any) (res []interface{}, err error) {
 	}
 }
 
-func (u *Client) ToRciQueryList(list *[]map[string]interface{}, path string, data any) error {
+func (u *Client) ToRciQueryList(list *[]map[string]interface{}, path string, data interface{}) error {
 	pathSplitted := strings.Split(path, ".")
 	if data == nil {
 		data = map[string]interface{}{}
@@ -163,7 +162,7 @@ func (u *Client) ToRciQueryList(list *[]map[string]interface{}, path string, dat
 	return nil
 }
 
-func (u *Client) getByRciQuery(path string, data any) (res any, err error) {
+func (u *Client) getByRciQuery(path string, data interface{}) (res interface{}, err error) {
 	var list []map[string]interface{}
 	err = u.ToRciQueryList(&list, path, data)
 	if err != nil {
@@ -195,19 +194,19 @@ func (u *Client) GetInterfaceList() (res map[string]InterfaceBase, err error) {
 	if !ok {
 		return nil, contextedError.New("parse error")
 	}
-	res = map[string]InterfaceBase{}
+	res = make(map[string]InterfaceBase)
 	for key, val := range v {
 		v, ok := val.(map[string]interface{})
 		if !ok {
 			return nil, contextedError.New("parse error")
 		}
 
-		interfaceBase := *new(InterfaceBase)
-		err := convertMapToStruct(v, &interfaceBase)
+		interfaceBase := new(InterfaceBase)
+		err := convertMapToStruct(v, interfaceBase)
 		if err != nil {
 			return nil, err
 		}
-		res[key] = interfaceBase
+		res[key] = *interfaceBase
 	}
 	return
 }
