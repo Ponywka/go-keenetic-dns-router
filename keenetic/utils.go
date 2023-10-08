@@ -6,6 +6,7 @@ import (
 	"github.com/Ponywka/go-keenetic-dns-router/errors/parentError"
 	"io"
 	"net/http"
+	"reflect"
 )
 
 func apiSyncRequest(method string, url string, data []byte, headers map[string]string) (resp *http.Response, body []byte, err error) {
@@ -42,4 +43,24 @@ func parseCookies(rawCookies string) []*http.Cookie {
 	header.Add("Cookie", rawCookies)
 	req := http.Request{Header: header}
 	return req.Cookies()
+}
+
+func convertMapToStruct(d any, s interface{}) error {
+	m, ok := d.(map[string]interface{})
+	if !ok {
+		return contextedError.New("parse error")
+	}
+	stValue := reflect.ValueOf(s).Elem()
+	sType := stValue.Type()
+	for i := 0; i < sType.NumField(); i++ {
+		field := sType.Field(i)
+		tagName := string(field.Tag.Get("json"))
+		if len(tagName) == 0 {
+			tagName = field.Name
+		}
+		if value, ok := m[tagName]; ok {
+			stValue.Field(i).Set(reflect.ValueOf(value))
+		}
+	}
+	return nil
 }

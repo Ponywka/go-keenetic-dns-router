@@ -8,7 +8,6 @@ import (
 	"github.com/Ponywka/go-keenetic-dns-router/errors/contextedError"
 	"github.com/Ponywka/go-keenetic-dns-router/errors/parentError"
 	"net/http"
-	"reflect"
 	"strings"
 )
 
@@ -188,26 +187,6 @@ func (u *KeeneticClient) getByRciQuery(path string, data any) (res any, err erro
 		res = v[key]
 	}
 	return
-}
-
-func convertMapToStruct(d any, s interface{}) error {
-	m, ok := d.(map[string]interface{})
-	if !ok {
-		return contextedError.New("parse error")
-	}
-	stValue := reflect.ValueOf(s).Elem()
-	sType := stValue.Type()
-	for i := 0; i < sType.NumField(); i++ {
-		field := sType.Field(i)
-		tagName := string(field.Tag.Get("json"))
-		if len(tagName) == 0 {
-			tagName = field.Name
-		}
-		if value, ok := m[tagName]; ok {
-			stValue.Field(i).Set(reflect.ValueOf(value))
-		}
-	}
-	return nil
 }
 
 func (u *KeeneticClient) GetInterfaceList() (res map[string]InterfaceBase, err error) {
