@@ -23,14 +23,10 @@ func (u *KeeneticUpdater) Tick() (bool, error) {
 	if !ok {
 		return false, contextedError.New("login or password invalid")
 	}
-	var list []map[string]interface{}
-	err = k.ToRciQueryList(&list, "show.interface", []map[string]interface{}{
-		{"name": "Dsl0"},
-	})
+	body, err := k.GetInterfaceList()
 	if err != nil {
 		return false, err
 	}
-	body, err := k.Rci(list)
 	log.Printf("%+v", body)
 	log.Println("EndTick")
 	return true, nil

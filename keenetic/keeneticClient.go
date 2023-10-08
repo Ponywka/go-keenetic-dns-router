@@ -191,6 +191,39 @@ func (u *KeeneticClient) ToRciQueryList(list *[]map[string]interface{}, path str
 	return nil
 }
 
+func (u *KeeneticClient) getByRciQuery(path string, data any) (res any, err error) {
+	var list []map[string]interface{}
+	err = u.ToRciQueryList(&list, path, data)
+	if err != nil {
+		return nil, parentError.New("list generating error", &err)
+	}
+
+	body, err := u.Rci(list)
+	if err != nil {
+		return nil, parentError.New("rci request error", &err)
+	}
+
+	resList, ok := body.([]interface{})
+	if !ok {
+		return nil, contextedError.New("parse error")
+	}
+	res = resList[0]
+	for _, key := range strings.Split(path, ".") {
+		v, ok := res.(map[string]interface{})
+		if !ok {
+			return nil, contextedError.New("parse error")
+		}
+		res = v[key]
+	}
+	return
+}
+
+func (u *KeeneticClient) GetInterfaceList() (body any, err error) {
+	body, err = u.getByRciQuery("show.interface", nil)
+	// TODO: Convert to right type
+	return
+}
+
 func NewKeeneticClient(host string) KeeneticClient {
 	return KeeneticClient{
 		host: host,
