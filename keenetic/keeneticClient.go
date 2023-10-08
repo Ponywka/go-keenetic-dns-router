@@ -197,8 +197,13 @@ func (u *Client) GetInterfaceList() (res map[string]InterfaceBase, err error) {
 	}
 	res = map[string]InterfaceBase{}
 	for key, val := range v {
+		v, ok := val.(map[string]interface{})
+		if !ok {
+			return nil, contextedError.New("parse error")
+		}
+
 		interfaceBase := *new(InterfaceBase)
-		err := convertMapToStruct(val, &interfaceBase)
+		err := convertMapToStruct(v, &interfaceBase)
 		if err != nil {
 			return nil, err
 		}
