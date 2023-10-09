@@ -28,6 +28,11 @@ func (u *KeeneticUpdater) Tick() (bool, error) {
 		return false, err
 	}
 	log.Printf("%+v", interfaces)
+	routes, err := k.GetRouteList()
+	if err != nil {
+		return false, err
+	}
+	log.Printf("%+v", routes)
 	log.Println("EndTick")
 	return true, nil
 }

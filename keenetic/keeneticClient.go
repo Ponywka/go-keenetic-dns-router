@@ -224,6 +224,28 @@ func (u *Client) GetInterfaceList() (map[string]InterfaceBase, error) {
 	return listMap, nil
 }
 
+func (u *Client) GetRouteList() (map[string]Route, error) {
+	list, err := u.getListByRciQuery("show.ip.route", nil, func(mapItem map[string]interface{}) (interface{}, error) {
+		item := *new(Route)
+		err := convertMapToStruct(mapItem, &item)
+		return item, err
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	listMap := make(map[string]Route)
+	for key, val := range list {
+		v, ok := val.(Route)
+		if !ok {
+			return nil, contextedError.New("parse error")
+		}
+		listMap[key] = v
+	}
+
+	return listMap, nil
+}
+
 func New(host string) Client {
 	return Client{
 		host: host,
