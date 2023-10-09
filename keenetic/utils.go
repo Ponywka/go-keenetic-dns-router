@@ -8,7 +8,6 @@ import (
 	"io"
 	"net/http"
 	"reflect"
-	"strconv"
 )
 
 func apiSyncRequest(method string, url string, data []byte, headers map[string]string) (resp *http.Response, body []byte, err error) {
@@ -130,23 +129,23 @@ func setFieldValue(field reflect.Value, fieldValue interface{}) error {
 	return nil
 }
 
-// Конвертирует map[string]interface{} или []interface{} в map[string]SomeStrict
-func convertMapItemType(inputData interface{}, itemConverter func(map[string]interface{}) (interface{}, error)) (map[string]interface{}, error) {
-	mapData, ok := inputData.(map[string]interface{})
+// Конвертирует map[string]interface{} или []interface{} в []SomeStrict
+func convertMapToSliceWithType(inputData interface{}, itemConverter func(map[string]interface{}) (interface{}, error)) ([]interface{}, error) {
+	mapData, ok := inputData.([]interface{})
 	if !ok {
 		switch data := inputData.(type) {
-		case []interface{}:
-			mapData = make(map[string]interface{})
-			for idx, itemInterface := range data {
-				mapData[strconv.Itoa(idx)] = itemInterface
+		case map[string]interface{}:
+			mapData = []interface{}{}
+			for _, itemInterface := range data {
+				mapData = append(mapData, itemInterface)
 			}
 		default:
 			return nil, contextedError.New("parse error")
 		}
 	}
 
-	list := make(map[string]interface{})
-	for name, itemInterface := range mapData {
+	var list []interface{}
+	for _, itemInterface := range mapData {
 		itemMap, ok := itemInterface.(map[string]interface{})
 		if !ok {
 			return nil, contextedError.New("parse error")
@@ -157,7 +156,7 @@ func convertMapItemType(inputData interface{}, itemConverter func(map[string]int
 			return nil, contextedError.New("item conversion error")
 		}
 
-		list[name] = item
+		list = append(list, item)
 	}
 
 	return list, nil

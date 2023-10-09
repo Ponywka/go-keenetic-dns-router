@@ -188,13 +188,13 @@ func (u *Client) getByRciQuery(path string, data interface{}) (res interface{}, 
 	return
 }
 
-func (u *Client) getListByRciQuery(query string, data any, itemConverter func(map[string]interface{}) (interface{}, error)) (map[string]interface{}, error) {
+func (u *Client) getListByRciQuery(query string, data any, itemConverter func(map[string]interface{}) (interface{}, error)) ([]interface{}, error) {
 	body, err := u.getByRciQuery(query, data)
 	if err != nil {
 		return nil, parentError.New("rci request error", &err)
 	}
 
-	list, err := convertMapItemType(body, itemConverter)
+	list, err := convertMapToSliceWithType(body, itemConverter)
 	if err != nil {
 		return nil, parentError.New("conversation error", &err)
 	}
@@ -202,7 +202,7 @@ func (u *Client) getListByRciQuery(query string, data any, itemConverter func(ma
 	return list, nil
 }
 
-func (u *Client) GetInterfaceList() (map[string]InterfaceBase, error) {
+func (u *Client) GetInterfaceList() ([]InterfaceBase, error) {
 	list, err := u.getListByRciQuery("show.interface", nil, func(mapItem map[string]interface{}) (interface{}, error) {
 		item := *new(InterfaceBase)
 		err := convertMapToStruct(mapItem, &item)
@@ -212,19 +212,19 @@ func (u *Client) GetInterfaceList() (map[string]InterfaceBase, error) {
 		return nil, err
 	}
 
-	listMap := make(map[string]InterfaceBase)
-	for key, val := range list {
+	var listMap []InterfaceBase
+	for _, val := range list {
 		v, ok := val.(InterfaceBase)
 		if !ok {
 			return nil, contextedError.New("parse error")
 		}
-		listMap[key] = v
+		listMap = append(listMap, v)
 	}
 
 	return listMap, nil
 }
 
-func (u *Client) GetRouteList() (map[string]Route, error) {
+func (u *Client) GetRouteList() ([]Route, error) {
 	list, err := u.getListByRciQuery("show.ip.route", nil, func(mapItem map[string]interface{}) (interface{}, error) {
 		item := *new(Route)
 		err := convertMapToStruct(mapItem, &item)
@@ -234,13 +234,13 @@ func (u *Client) GetRouteList() (map[string]Route, error) {
 		return nil, err
 	}
 
-	listMap := make(map[string]Route)
-	for key, val := range list {
+	var listMap []Route
+	for _, val := range list {
 		v, ok := val.(Route)
 		if !ok {
 			return nil, contextedError.New("parse error")
 		}
-		listMap[key] = v
+		listMap = append(listMap, v)
 	}
 
 	return listMap, nil
