@@ -46,6 +46,7 @@ func parseCookies(rawCookies string) []*http.Cookie {
 	return req.Cookies()
 }
 
+// Конвертирует map[string]interface{} в SomeStrict
 func convertMapToStruct(data map[string]interface{}, obj interface{}) error {
 	objValue := reflect.ValueOf(obj)
 	if objValue.Kind() != reflect.Ptr || objValue.IsNil() {
@@ -58,8 +59,8 @@ func convertMapToStruct(data map[string]interface{}, obj interface{}) error {
 	for i := 0; i < objValue.NumField(); i++ {
 		field := objValue.Field(i)
 		fieldType := objType.Field(i)
-		fieldName := fieldType.Tag.Get("json")
 
+		fieldName := fieldType.Tag.Get("json")
 		if fieldName == "" {
 			fieldName = fieldType.Name
 		}
@@ -73,31 +74,82 @@ func convertMapToStruct(data map[string]interface{}, obj interface{}) error {
 			return contextedError.New(fmt.Sprintf("field '%s' is unavailable to write", fieldName))
 		}
 
-		if fieldType.Type.Kind() == reflect.Slice {
-			sliceType := fieldType.Type
-			sliceElemType := sliceType.Elem()
-
-			if reflect.TypeOf(fieldValue).Kind() == reflect.Slice {
-				slice := reflect.MakeSlice(sliceType, 0, 0)
-				for _, elem := range fieldValue.([]interface{}) {
-					if !reflect.ValueOf(elem).Type().ConvertibleTo(sliceElemType) {
-						return contextedError.New(fmt.Sprintf("field '%s' is unavailable to convert", fieldName))
-					}
-
-					slice = reflect.Append(slice, reflect.ValueOf(elem).Convert(sliceElemType))
-				}
-				field.Set(slice)
-			} else {
-				return contextedError.New(fmt.Sprintf("field '%s' is unavailable to convert", fieldName))
-			}
-		} else {
-			if !reflect.ValueOf(fieldValue).Type().ConvertibleTo(field.Type()) {
-				return contextedError.New(fmt.Sprintf("field '%s' is unavailable to convert", fieldName))
-			}
-
-			field.Set(reflect.ValueOf(fieldValue).Convert(field.Type()))
+		if err := setFieldValue(field, fieldValue); err != nil {
+			return err
 		}
 	}
 
 	return nil
+}
+
+func setFieldValue(field reflect.Value, fieldValue interface{}) error {
+	fieldType := field.Type()
+
+	switch fieldType.Kind() {
+	case reflect.Slice:
+		sliceElemType := fieldType.Elem()
+
+		if reflect.TypeOf(fieldValue).Kind() != reflect.Slice {
+			return contextedError.New("field slice type mismatch")
+		}
+
+		slice := reflect.MakeSlice(fieldType, 0, 0)
+		for _, elem := range fieldValue.([]interface{}) {
+			elemValue := reflect.New(sliceElemType).Elem()
+
+			if err := setFieldValue(elemValue, elem); err != nil {
+				return err
+			}
+
+			slice = reflect.Append(slice, elemValue)
+		}
+		field.Set(slice)
+
+	case reflect.Struct:
+		if reflect.TypeOf(fieldValue).Kind() != reflect.Map {
+			return contextedError.New("field struct type mismatch")
+		}
+
+		structValue := reflect.New(fieldType).Elem()
+		if err := convertMapToStruct(fieldValue.(map[string]interface{}), structValue.Addr().Interface()); err != nil {
+			return err
+		}
+		field.Set(structValue)
+
+	default:
+		fieldValueOfType := reflect.ValueOf(fieldValue)
+
+		if !fieldValueOfType.Type().ConvertibleTo(fieldType) {
+			return contextedError.New("field type mismatch")
+		}
+
+		field.Set(fieldValueOfType.Convert(fieldType))
+	}
+
+	return nil
+}
+
+// Конвертирует map[string]interface{} в map[string]SomeStrict
+func convertMapItemType(inputData interface{}, itemConverter func(map[string]interface{}) (interface{}, error)) (map[string]interface{}, error) {
+	mapData, ok := inputData.(map[string]interface{})
+	if !ok {
+		return nil, contextedError.New("parse error")
+	}
+
+	list := make(map[string]interface{})
+	for name, itemInterface := range mapData {
+		itemMap, ok := itemInterface.(map[string]interface{})
+		if !ok {
+			return nil, contextedError.New("parse error")
+		}
+
+		item, err := itemConverter(itemMap)
+		if err != nil {
+			return nil, contextedError.New("item conversion error")
+		}
+
+		list[name] = item
+	}
+
+	return list, nil
 }

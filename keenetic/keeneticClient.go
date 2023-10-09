@@ -188,27 +188,40 @@ func (u *Client) getByRciQuery(path string, data interface{}) (res interface{}, 
 	return
 }
 
-func (u *Client) GetInterfaceList() (res map[string]InterfaceBase, err error) {
-	body, err := u.getByRciQuery("show.interface", nil)
-	v, ok := body.(map[string]interface{})
-	if !ok {
-		return nil, contextedError.New("parse error")
+func (u *Client) getListByRciQuery(query string, data any, itemConverter func(map[string]interface{}) (interface{}, error)) (map[string]interface{}, error) {
+	body, err := u.getByRciQuery(query, data)
+	if err != nil {
+		return nil, parentError.New("rci request error", &err)
 	}
-	res = make(map[string]InterfaceBase)
-	for key, val := range v {
-		v, ok := val.(map[string]interface{})
+
+	list, err := convertMapItemType(body, itemConverter)
+	if err != nil {
+		return nil, parentError.New("conversation error", &err)
+	}
+
+	return list, nil
+}
+
+func (u *Client) GetInterfaceList() (map[string]InterfaceBase, error) {
+	list, err := u.getListByRciQuery("show.interface", nil, func(mapItem map[string]interface{}) (interface{}, error) {
+		item := *new(InterfaceBase)
+		err := convertMapToStruct(mapItem, &item)
+		return item, err
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	listMap := make(map[string]InterfaceBase)
+	for key, val := range list {
+		v, ok := val.(InterfaceBase)
 		if !ok {
 			return nil, contextedError.New("parse error")
 		}
-
-		interfaceBase := new(InterfaceBase)
-		err := convertMapToStruct(v, interfaceBase)
-		if err != nil {
-			return nil, err
-		}
-		res[key] = *interfaceBase
+		listMap[key] = v
 	}
-	return
+
+	return listMap, nil
 }
 
 func New(host string) Client {
