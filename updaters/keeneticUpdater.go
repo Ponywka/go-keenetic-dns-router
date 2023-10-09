@@ -2,37 +2,41 @@ package updaters
 
 import (
 	"github.com/Ponywka/go-keenetic-dns-router/errors/contextedError"
+	"github.com/Ponywka/go-keenetic-dns-router/errors/parentError"
 	"github.com/Ponywka/go-keenetic-dns-router/keenetic"
 	"log"
 )
 
 type KeeneticUpdater struct {
-	Login       string
-	Password    string
 	URL         string
 	isConnected bool
+	client      keenetic.Client
+	interfaces  []keenetic.InterfaceBase
+	routes      []keenetic.Route
 }
 
-func (u *KeeneticUpdater) Tick() (bool, error) {
-	log.Println("Tick")
-	k := keenetic.New(u.URL)
-	ok, err := k.Auth(u.Login, u.Password)
+func (u *KeeneticUpdater) Init(host, login, password string) (bool, error) {
+	u.client = keenetic.New(host)
+	ok, err := u.client.Auth(login, password)
 	if err != nil {
-		return false, err
+		return false, parentError.New("auth error", &err)
 	}
 	if !ok {
 		return false, contextedError.New("login or password invalid")
 	}
-	interfaces, err := k.GetInterfaceList()
+	u.interfaces, err = u.client.GetInterfaceList()
 	if err != nil {
-		return false, err
+		return false, contextedError.New("getting interfaces error")
 	}
-	log.Printf("%+v", interfaces)
-	routes, err := k.GetRouteList()
+	u.routes, err = u.client.GetRouteList()
 	if err != nil {
-		return false, err
+		return false, contextedError.New("getting routes error")
 	}
-	log.Printf("%+v", routes)
+	return true, nil
+}
+
+func (u *KeeneticUpdater) Tick() (bool, error) {
+	log.Println("Tick")
 	log.Println("EndTick")
 	return true, nil
 }

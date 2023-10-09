@@ -4,20 +4,22 @@ import (
 	dns "github.com/Focinfi/go-dns-resolver"
 	"github.com/Ponywka/go-keenetic-dns-router/routes"
 	"log"
+	"math"
 	"reflect"
 	"sort"
 	"time"
 )
 
 type DomainRouteUpdater struct {
-	MinTTL   int64
-	MaxTTL   int64
-	Resolver *dns.Resolver
-	Domains  []routes.DomainRouteExtended
+	MinTTL     int64
+	MaxTTL     int64
+	DefaultTTL int64
+	Resolver   *dns.Resolver
+	Domains    map[string]routes.DomainRouteExtended
 }
 
 func (u *DomainRouteUpdater) Add(domainRoute routes.DomainRoute) {
-	u.Domains = append(u.Domains, routes.DomainRouteExtended{DomainRoute: domainRoute})
+	u.Domains[domainRoute.Domain] = routes.DomainRouteExtended{DomainRoute: domainRoute}
 }
 
 func (u *DomainRouteUpdater) resolveDomain(domain *routes.DomainRouteExtended) bool {
@@ -28,19 +30,25 @@ func (u *DomainRouteUpdater) resolveDomain(domain *routes.DomainRouteExtended) b
 
 	// Compute domain info
 	UpdateTime := time.Now().Unix()
-	LowestTTL := u.MaxTTL
 	var IPs []string
-	for target := range result.ResMap {
-		for _, r := range result.ResMap[target] {
-			TTLMillis := int64(r.Ttl.Seconds())
-			if TTLMillis < LowestTTL {
-				LowestTTL = TTLMillis
-			}
-			IPs = append(IPs, r.Content)
+	LowestTTL := u.DefaultTTL
+	if len(result.ResMap) != 0 {
+		LowestTTL = math.MaxInt64
+		if u.MaxTTL != 0 {
+			LowestTTL = u.MaxTTL
 		}
-	}
-	if LowestTTL < u.MinTTL {
-		LowestTTL = u.MinTTL
+		for target := range result.ResMap {
+			for _, r := range result.ResMap[target] {
+				TTLSeconds := int64(r.Ttl.Seconds())
+				if TTLSeconds < LowestTTL {
+					LowestTTL = TTLSeconds
+				}
+				IPs = append(IPs, r.Content)
+			}
+		}
+		if u.MinTTL != 0 && LowestTTL < u.MinTTL {
+			LowestTTL = u.MinTTL
+		}
 	}
 	sort.Strings(IPs)
 
@@ -54,18 +62,26 @@ func (u *DomainRouteUpdater) resolveDomain(domain *routes.DomainRouteExtended) b
 	return true
 }
 
+func (u *DomainRouteUpdater) Init(dnsServer string, domains []routes.DomainRoute) (bool, error) {
+	u.Resolver = dns.NewResolver(dnsServer)
+	u.Domains = make(map[string]routes.DomainRouteExtended)
+	for _, domain := range domains {
+		u.Add(domain)
+	}
+	return true, nil
+}
+
 func (u *DomainRouteUpdater) Tick() (bool, error) {
 	log.Println("Tick")
-	for index := range u.Domains {
-		domain := &u.Domains[index]
-		if domain.NextResolve > time.Now().Unix() {
+	isUpdated := false
+	for _, domainRoute := range u.Domains {
+		if domainRoute.NextResolve > time.Now().Unix() {
 			continue
 		}
-		log.Printf("Processing %s domain", domain.Domain)
-		ok := u.resolveDomain(domain)
-		if ok {
-			log.Printf("%s IPs: %+v", domain.Domain, domain.IPs)
-		}
+		isUpdated = isUpdated || u.resolveDomain(&domainRoute)
+	}
+	if isUpdated {
+
 	}
 	log.Println("EndTick")
 	return true, nil

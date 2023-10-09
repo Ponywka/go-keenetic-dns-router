@@ -3,7 +3,6 @@ package main
 import (
 	"errors"
 	"fmt"
-	dns "github.com/Focinfi/go-dns-resolver"
 	"github.com/Ponywka/go-keenetic-dns-router/errors/contextedError"
 	"github.com/Ponywka/go-keenetic-dns-router/errors/parentError"
 	"github.com/Ponywka/go-keenetic-dns-router/routes"
@@ -24,31 +23,51 @@ func printError(err error) {
 	}
 }
 
-func main() {
-	// DNS
-	domainRouteUpdater := updaters.DomainRouteUpdater{
-		Resolver: dns.NewResolver("192.168.1.1"),
-		MinTTL:   60,
-		MaxTTL:   300,
-	}
-	domains := []string{"google.com", "yandex.ru"}
-	for _, domain := range domains {
-		domainRoute := routes.DomainRoute{Domain: domain, Comment: fmt.Sprintf("This domain is %s", domain)}
-		domainRouteUpdater.Add(domainRoute)
-	}
-	_, err := domainRouteUpdater.Tick()
-	if err != nil {
-		printError(err)
+type App struct {
+	config             map[string]string
+	domainRouteUpdater updaters.DomainRouteUpdater
+	keeneticUpdater    updaters.KeeneticUpdater
+}
+
+func (a *App) Init() {
+	// TODO: Database
+	domains := []routes.DomainRoute{
+		{Domain: "google.com"},
+		{Domain: "yandex.ru"},
 	}
 
-	// Keenetic
-	keeneticUpdater := updaters.KeeneticUpdater{
-		Login:    "demo",
-		Password: "demo",
-		URL:      "https://keenetic.demo.keenetic.pro",
-	}
-	_, err = keeneticUpdater.Tick()
-	if err != nil {
+	var ok bool
+	var err error
+
+	if ok, err = a.domainRouteUpdater.Init(a.config["domain.server"], domains); err != nil {
+		err = parentError.New("domainRouteUpdater initialization error", &err)
 		printError(err)
+		return
 	}
+
+	if ok, err = a.keeneticUpdater.Init(
+		a.config["keenetic.host"],
+		a.config["keenetic.login"],
+		a.config["keenetic.password"],
+	); err != nil {
+		err = parentError.New("keeneticUpdater initialization error", &err)
+		printError(err)
+		return
+	}
+
+	_ = ok
+}
+
+func main() {
+	app := App{
+		config: map[string]string{
+			"domain.server":     "192.168.1.1",
+			"keenetic.host":     "https://keenetic.demo.keenetic.pro",
+			"keenetic.login":    "demo",
+			"keenetic.password": "demo",
+		},
+		domainRouteUpdater: *new(updaters.DomainRouteUpdater),
+		keeneticUpdater:    *new(updaters.KeeneticUpdater),
+	}
+	app.Init()
 }
