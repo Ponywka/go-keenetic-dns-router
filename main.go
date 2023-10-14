@@ -24,9 +24,11 @@ func printError(err error) {
 }
 
 type App struct {
-	config             map[string]interface{}
-	domainRouteUpdater updaters.DomainRouteUpdater
-	keeneticUpdater    updaters.KeeneticUpdater
+	config              map[string]interface{}
+	domainRouteUpdater  updaters.DomainRouteUpdater
+	domainRouteInterval int64
+	keeneticUpdater     updaters.KeeneticUpdater
+	keeneticIntercal    int64
 }
 
 func (a *App) Init() {
@@ -47,6 +49,7 @@ func (a *App) Init() {
 	a.domainRouteUpdater.MaxTTL = a.config["domain.ttl.max"].(int64)
 	a.domainRouteUpdater.MinTTL = a.config["domain.ttl.min"].(int64)
 	a.domainRouteUpdater.DefaultTTL = a.config["domain.ttl.default"].(int64)
+	a.SetDomainRouteInterval(a.config["domain.interval"].(int64))
 
 	if ok, err = a.keeneticUpdater.Init(
 		a.config["keenetic.host"].(string),
@@ -57,8 +60,25 @@ func (a *App) Init() {
 		printError(err)
 		return
 	}
+	a.SetKeeneticInterval(a.config["keenetic.interval"].(int64))
+
+	_, err = a.keeneticUpdater.Tick()
+	if err != nil {
+		printError(err)
+	}
+
+	fmt.Printf("%+v", a.keeneticUpdater.GetInterfaces())
+	fmt.Printf("%+v", a.keeneticUpdater.GetRoutes())
 
 	_ = ok
+}
+
+func (a *App) SetKeeneticInterval(sec int64) {
+	a.keeneticIntercal = sec
+}
+
+func (a *App) SetDomainRouteInterval(sec int64) {
+	a.domainRouteInterval = sec
 }
 
 func main() {
@@ -68,9 +88,11 @@ func main() {
 			"domain.ttl.min":     int64(60),
 			"domain.ttl.default": int64(300),
 			"domain.server":      "192.168.1.1",
+			"domain.interval":    int64(5),
 			"keenetic.host":      "https://keenetic.demo.keenetic.pro",
 			"keenetic.login":     "demo",
 			"keenetic.password":  "demo",
+			"keenetic.interval":  int64(300),
 		},
 		domainRouteUpdater: *new(updaters.DomainRouteUpdater),
 		keeneticUpdater:    *new(updaters.KeeneticUpdater),

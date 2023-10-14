@@ -15,6 +15,14 @@ type KeeneticUpdater struct {
 	routes      []keenetic.Route
 }
 
+func (u *KeeneticUpdater) GetInterfaces() []keenetic.InterfaceBase {
+	return u.interfaces
+}
+
+func (u *KeeneticUpdater) GetRoutes() []keenetic.Route {
+	return u.routes
+}
+
 func (u *KeeneticUpdater) Init(host, login, password string) (bool, error) {
 	u.client = keenetic.New(host)
 	ok, err := u.client.Auth(login, password)
