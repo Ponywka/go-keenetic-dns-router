@@ -7,6 +7,8 @@ import (
 	"github.com/Ponywka/go-keenetic-dns-router/pkg/errors/contextedError"
 	"github.com/Ponywka/go-keenetic-dns-router/pkg/errors/parentError"
 	"github.com/Ponywka/go-keenetic-dns-router/pkg/routes"
+	"github.com/caarlos0/env/v6"
+	"github.com/joho/godotenv"
 )
 
 func printError(err error) {
@@ -23,15 +25,26 @@ func printError(err error) {
 	}
 }
 
+type AppConfig struct {
+	DomainTtlMax     int64  `env:"DOMAIN_TTL_MAX,required"`
+	DomainTtlMin     int64  `env:"DOMAIN_TTL_MIN,required"`
+	DomainTtlDefault int64  `env:"DOMAIN_TTL_DEFAULT,required"`
+	DomainServer     string `env:"DOMAIN_SERVER,required"`
+	DomainInterval   int64  `env:"DOMAIN_INTERVAL,required"`
+	KeeneticHost     string `env:"KEENETIC_HOST,required"`
+	KeeneticLogin    string `env:"KEENETIC_LOGIN,required"`
+	KeeneticPassword string `env:"KEENETIC_PASSWORD,required"`
+	KeeneticInterval int64  `env:"KEENETIC_INTERVAL,required"`
+}
+
 type App struct {
-	config              map[string]interface{}
 	domainRouteUpdater  updaters.DomainRouteUpdater
 	domainRouteInterval int64
 	keeneticUpdater     updaters.KeeneticUpdater
 	keeneticIntercal    int64
 }
 
-func (a *App) Init() {
+func (a *App) Init(config AppConfig) {
 	// TODO: Database
 	domains := []routes.DomainRoute{
 		{Domain: "google.com"},
@@ -41,26 +54,26 @@ func (a *App) Init() {
 	var ok bool
 	var err error
 
-	if ok, err = a.domainRouteUpdater.Init(a.config["domain.server"].(string), domains); err != nil {
+	if ok, err = a.domainRouteUpdater.Init(config.DomainServer, domains); err != nil {
 		err = parentError.New("domainRouteUpdater initialization error", &err)
 		printError(err)
 		return
 	}
-	a.domainRouteUpdater.MaxTTL = a.config["domain.ttl.max"].(int64)
-	a.domainRouteUpdater.MinTTL = a.config["domain.ttl.min"].(int64)
-	a.domainRouteUpdater.DefaultTTL = a.config["domain.ttl.default"].(int64)
-	a.SetDomainRouteInterval(a.config["domain.interval"].(int64))
+	a.domainRouteUpdater.MaxTTL = config.DomainTtlMax
+	a.domainRouteUpdater.MinTTL = config.DomainTtlMin
+	a.domainRouteUpdater.DefaultTTL = config.DomainTtlDefault
+	a.SetDomainRouteInterval(config.DomainInterval)
 
 	if ok, err = a.keeneticUpdater.Init(
-		a.config["keenetic.host"].(string),
-		a.config["keenetic.login"].(string),
-		a.config["keenetic.password"].(string),
+		config.KeeneticHost,
+		config.KeeneticLogin,
+		config.KeeneticPassword,
 	); err != nil {
 		err = parentError.New("keeneticUpdater initialization error", &err)
 		printError(err)
 		return
 	}
-	a.SetKeeneticInterval(a.config["keenetic.interval"].(int64))
+	a.SetKeeneticInterval(config.KeeneticInterval)
 
 	_, err = a.keeneticUpdater.Tick()
 	if err != nil {
@@ -82,20 +95,18 @@ func (a *App) SetDomainRouteInterval(sec int64) {
 }
 
 func main() {
+	if err := godotenv.Load(".env"); err != nil {
+		panic(err)
+	}
+
+	config := AppConfig{}
+	if err := env.Parse(&config); err != nil {
+		panic(err)
+	}
+
 	app := App{
-		config: map[string]interface{}{
-			"domain.ttl.max":     int64(3600),
-			"domain.ttl.min":     int64(60),
-			"domain.ttl.default": int64(300),
-			"domain.server":      "192.168.1.1",
-			"domain.interval":    int64(5),
-			"keenetic.host":      "https://keenetic.demo.keenetic.pro",
-			"keenetic.login":     "demo",
-			"keenetic.password":  "demo",
-			"keenetic.interval":  int64(300),
-		},
 		domainRouteUpdater: *new(updaters.DomainRouteUpdater),
 		keeneticUpdater:    *new(updaters.KeeneticUpdater),
 	}
-	app.Init()
+	app.Init(config)
 }
