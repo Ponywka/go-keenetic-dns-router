@@ -3,8 +3,8 @@ package keenetic
 import (
 	"bytes"
 	"fmt"
-	"github.com/Ponywka/go-keenetic-dns-router/errors/contextedError"
-	"github.com/Ponywka/go-keenetic-dns-router/errors/parentError"
+	"github.com/Ponywka/go-keenetic-dns-router/pkg/errors/contextedError"
+	"github.com/Ponywka/go-keenetic-dns-router/pkg/errors/parentError"
 	"io"
 	"net/http"
 	"reflect"

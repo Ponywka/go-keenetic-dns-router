@@ -3,10 +3,10 @@ package main
 import (
 	"errors"
 	"fmt"
-	"github.com/Ponywka/go-keenetic-dns-router/errors/contextedError"
-	"github.com/Ponywka/go-keenetic-dns-router/errors/parentError"
-	"github.com/Ponywka/go-keenetic-dns-router/routes"
-	"github.com/Ponywka/go-keenetic-dns-router/updaters"
+	"github.com/Ponywka/go-keenetic-dns-router/internal/updaters"
+	"github.com/Ponywka/go-keenetic-dns-router/pkg/errors/contextedError"
+	"github.com/Ponywka/go-keenetic-dns-router/pkg/errors/parentError"
+	"github.com/Ponywka/go-keenetic-dns-router/pkg/routes"
 )
 
 func printError(err error) {

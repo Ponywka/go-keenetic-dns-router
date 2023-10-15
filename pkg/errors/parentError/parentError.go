@@ -2,7 +2,7 @@ package parentError
 
 import (
 	"errors"
-	"github.com/Ponywka/go-keenetic-dns-router/errors/contextedError"
+	"github.com/Ponywka/go-keenetic-dns-router/pkg/errors/contextedError"
 	"runtime"
 )
 

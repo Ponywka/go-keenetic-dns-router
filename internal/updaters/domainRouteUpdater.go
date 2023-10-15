@@ -2,7 +2,7 @@ package updaters
 
 import (
 	dns "github.com/Focinfi/go-dns-resolver"
-	"github.com/Ponywka/go-keenetic-dns-router/routes"
+	"github.com/Ponywka/go-keenetic-dns-router/pkg/routes"
 	"log"
 	"math"
 	"reflect"

@@ -1,9 +1,9 @@
 package updaters
 
 import (
-	"github.com/Ponywka/go-keenetic-dns-router/errors/contextedError"
-	"github.com/Ponywka/go-keenetic-dns-router/errors/parentError"
-	"github.com/Ponywka/go-keenetic-dns-router/keenetic"
+	"github.com/Ponywka/go-keenetic-dns-router/pkg/errors/contextedError"
+	"github.com/Ponywka/go-keenetic-dns-router/pkg/errors/parentError"
+	"github.com/Ponywka/go-keenetic-dns-router/pkg/keenetic"
 	"log"
 )
 
