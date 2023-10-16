@@ -70,8 +70,8 @@ func New(config *Config) error {
 	}
 
 	time.Sleep(8 * time.Second)
-	a.domainRouteUpdaterTicker.TickerReset <- 1 * time.Second
-	a.domainRouteUpdaterTicker.TickerReset <- 1 * time.Second
+	a.SetKeeneticInterval(1)
+	a.SetDomainRouteInterval(1)
 	time.Sleep(5 * time.Second)
 	a.domainRouteUpdaterTicker.TickerStop <- true
 	a.domainRouteUpdaterTicker.TickerStop <- true
