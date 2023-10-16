@@ -2,9 +2,9 @@ package app
 
 import (
 	"fmt"
+	"github.com/Ponywka/go-keenetic-dns-router/internal/routes"
 	"github.com/Ponywka/go-keenetic-dns-router/internal/updaters"
 	"github.com/Ponywka/go-keenetic-dns-router/pkg/errors/parentError"
-	"github.com/Ponywka/go-keenetic-dns-router/pkg/routes"
 	"time"
 )
 
