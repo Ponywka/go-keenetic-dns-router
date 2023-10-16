@@ -33,11 +33,11 @@ func (u *KeeneticUpdater) Init(host, login, password string) error {
 	}
 	u.interfaces, err = u.client.GetInterfaceList()
 	if err != nil {
-		return errors.New("getting interfaces error")
+		return fmt.Errorf("getting interfaces error: %w", err)
 	}
 	u.routes, err = u.client.GetRouteList()
 	if err != nil {
-		return errors.New("getting routes error")
+		return fmt.Errorf("getting routes error: %w", err)
 	}
 	return nil
 }

@@ -67,7 +67,7 @@ func convertMapToStruct(data map[string]interface{}, obj interface{}) error {
 		}
 
 		if !field.CanSet() {
-			return errors.New(fmt.Sprintf("field '%s' is unavailable to write", fieldName))
+			return fmt.Errorf("field '%s' is unavailable to write", fieldName)
 		}
 
 		if err := setFieldValue(field, fieldValue); err != nil {
