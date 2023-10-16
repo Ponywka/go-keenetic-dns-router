@@ -41,7 +41,7 @@ func New(config *Config) error {
 					continue
 				}
 				if res.Result {
-					fmt.Println("Updated!")
+					fmt.Println("domainRouteUpdater updated!")
 				}
 			}
 		}()
@@ -63,7 +63,7 @@ func New(config *Config) error {
 					continue
 				}
 				if res.Result {
-					fmt.Println("Updated!")
+					fmt.Println("keeneticUpdater updated!")
 				}
 			}
 		}()
