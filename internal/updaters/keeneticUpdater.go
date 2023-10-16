@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/Ponywka/go-keenetic-dns-router/pkg/keenetic"
+	"reflect"
 )
 
 type KeeneticUpdater struct {
@@ -43,5 +44,24 @@ func (u *KeeneticUpdater) Init(host, login, password string) error {
 }
 
 func (u *KeeneticUpdater) Tick() (bool, error) {
-	return false, nil
+	interfaces, err := u.client.GetInterfaceList()
+	if err != nil {
+		return false, fmt.Errorf("getting interfaces error: %w", err)
+	}
+	routes, err := u.client.GetRouteList()
+	if err != nil {
+		return false, fmt.Errorf("getting routes error: %w", err)
+	}
+
+	isUpdated := false
+	if !reflect.DeepEqual(interfaces, u.interfaces) {
+		u.interfaces = interfaces
+		isUpdated = true
+	}
+	if !reflect.DeepEqual(routes, u.routes) {
+		u.routes = routes
+		isUpdated = true
+	}
+
+	return isUpdated, nil
 }
