@@ -14,11 +14,11 @@ type DomainRouteUpdater struct {
 	MaxTTL     int64
 	DefaultTTL int64
 	Resolver   *dns.Resolver
-	Domains    map[string]routes.DomainRouteExtended
+	Domains    map[string]*routes.DomainRouteExtended
 }
 
 func (u *DomainRouteUpdater) Add(domainRoute routes.DomainRoute) {
-	u.Domains[domainRoute.Domain] = routes.DomainRouteExtended{DomainRoute: domainRoute}
+	u.Domains[domainRoute.Domain] = &routes.DomainRouteExtended{DomainRoute: domainRoute}
 }
 
 func (u *DomainRouteUpdater) resolveDomain(domain *routes.DomainRouteExtended) bool {
@@ -67,14 +67,14 @@ func (u *DomainRouteUpdater) resolveDomains() bool {
 		if domainRoute.NextResolve > time.Now().Unix() {
 			continue
 		}
-		isUpdated = isUpdated || u.resolveDomain(&domainRoute)
+		isUpdated = u.resolveDomain(domainRoute) || isUpdated
 	}
 	return isUpdated
 }
 
 func (u *DomainRouteUpdater) Init(dnsServer string, domains []routes.DomainRoute) error {
 	u.Resolver = dns.NewResolver(dnsServer)
-	u.Domains = make(map[string]routes.DomainRouteExtended)
+	u.Domains = make(map[string]*routes.DomainRouteExtended)
 	for _, domain := range domains {
 		u.Add(domain)
 	}
