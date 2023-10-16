@@ -8,10 +8,10 @@ import (
 )
 
 type App struct {
-	domainRouteUpdater  updaters.DomainRouteUpdater
-	domainRouteInterval time.Duration
-	keeneticUpdater     updaters.KeeneticUpdater
-	keeneticInterval    time.Duration
+	domainRouteUpdater       updaters.DomainRouteUpdater
+	domainRouteUpdaterTicker updaterTicker
+	keeneticUpdater          updaters.KeeneticUpdater
+	keeneticUpdaterTicker    updaterTicker
 }
 
 func New(config *Config) error {
@@ -31,9 +31,6 @@ func New(config *Config) error {
 
 	if ok, err = a.domainRouteUpdater.Init(config.DomainServer, domains); err != nil {
 		return fmt.Errorf("domainRouteUpdater initialization error: %w", err)
-	}
-	for _, domain := range domains {
-		a.domainRouteUpdater.Add(domain)
 	}
 	a.domainRouteUpdater.MaxTTL = config.DomainTtlMax
 	a.domainRouteUpdater.MinTTL = config.DomainTtlMin
@@ -94,10 +91,10 @@ func New(config *Config) error {
 	return nil
 }
 
-func (a *App) SetKeeneticInterval(sec time.Duration) {
-	a.keeneticInterval = sec
+func (a *App) SetKeeneticInterval(sec int64) {
+	a.domainRouteUpdaterTicker.TickerReset <- time.Duration(sec) * time.Second
 }
 
-func (a *App) SetDomainRouteInterval(sec time.Duration) {
-	a.domainRouteInterval = sec
+func (a *App) SetDomainRouteInterval(sec int64) {
+	a.domainRouteUpdaterTicker.TickerReset <- time.Duration(sec) * time.Second
 }

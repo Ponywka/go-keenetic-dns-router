@@ -3,7 +3,6 @@ package updaters
 import (
 	dns "github.com/Focinfi/go-dns-resolver"
 	"github.com/Ponywka/go-keenetic-dns-router/internal/routes"
-	"log"
 	"math"
 	"reflect"
 	"sort"
@@ -62,14 +61,7 @@ func (u *DomainRouteUpdater) resolveDomain(domain *routes.DomainRouteExtended) b
 	return true
 }
 
-func (u *DomainRouteUpdater) Init(dnsServer string, domains []routes.DomainRoute) (bool, error) {
-	u.Resolver = dns.NewResolver(dnsServer)
-	u.Domains = make(map[string]routes.DomainRouteExtended)
-	return true, nil
-}
-
-func (u *DomainRouteUpdater) Tick() (bool, error) {
-	log.Println("Tick")
+func (u *DomainRouteUpdater) resolveDomains() bool {
 	isUpdated := false
 	for _, domainRoute := range u.Domains {
 		if domainRoute.NextResolve > time.Now().Unix() {
@@ -77,9 +69,23 @@ func (u *DomainRouteUpdater) Tick() (bool, error) {
 		}
 		isUpdated = isUpdated || u.resolveDomain(&domainRoute)
 	}
+	return isUpdated
+}
+
+func (u *DomainRouteUpdater) Init(dnsServer string, domains []routes.DomainRoute) (bool, error) {
+	u.Resolver = dns.NewResolver(dnsServer)
+	u.Domains = make(map[string]routes.DomainRouteExtended)
+	for _, domain := range domains {
+		u.Add(domain)
+	}
+	u.resolveDomains()
+	return true, nil
+}
+
+func (u *DomainRouteUpdater) Tick() (bool, error) {
+	isUpdated := u.resolveDomains()
 	if isUpdated {
 
 	}
-	log.Println("EndTick")
-	return true, nil
+	return isUpdated, nil
 }
