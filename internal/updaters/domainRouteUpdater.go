@@ -65,9 +65,6 @@ func (u *DomainRouteUpdater) resolveDomain(domain *routes.DomainRouteExtended) b
 func (u *DomainRouteUpdater) Init(dnsServer string, domains []routes.DomainRoute) (bool, error) {
 	u.Resolver = dns.NewResolver(dnsServer)
 	u.Domains = make(map[string]routes.DomainRouteExtended)
-	for _, domain := range domains {
-		u.Add(domain)
-	}
 	return true, nil
 }
 
