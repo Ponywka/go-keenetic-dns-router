@@ -46,20 +46,38 @@ type App struct {
 	keeneticIntercal    time.Duration
 }
 
-func (a *App) createUpdaterTicker(updater interfaces.Updater, d time.Duration) (timerUpdate chan time.Duration, quit chan bool) {
+type updaterTickResult struct {
+	Result bool
+	Error  error
+}
+
+type updaterTicker struct {
+	TimerUpdate chan time.Duration
+	Quit        chan bool
+	Result      chan updaterTickResult
+}
+
+func (a *App) createUpdaterTicker(updater interfaces.Updater, d time.Duration) (ut updaterTicker) {
 	ticker := time.NewTicker(d)
-	timerUpdate = make(chan time.Duration)
-	quit = make(chan bool)
+	ut = updaterTicker{
+		TimerUpdate: make(chan time.Duration),
+		Quit:        make(chan bool),
+		Result:      make(chan updaterTickResult),
+	}
 	go func() {
 		for {
 			select {
 			case <-ticker.C:
-				// TODO: Error handler
-				_, _ = updater.Tick()
-			case d := <-timerUpdate:
+				res, err := updater.Tick()
+				ut.Result <- updaterTickResult{
+					Result: res,
+					Error:  err,
+				}
+			case d := <-ut.TimerUpdate:
 				ticker.Reset(d)
-			case <-quit:
-				return
+			case <-ut.Quit:
+				ticker.Stop()
+				break
 			}
 		}
 	}()
@@ -85,7 +103,20 @@ func (a *App) Init(config AppConfig) {
 	a.domainRouteUpdater.MinTTL = config.DomainTtlMin
 	a.domainRouteUpdater.DefaultTTL = config.DomainTtlDefault
 	a.SetDomainRouteInterval(time.Duration(config.DomainInterval))
-	domainRouteUpdaterTimer, domainRouteUpdaterQuit := a.createUpdaterTicker(&a.domainRouteUpdater, a.domainRouteInterval*time.Second)
+
+	domainRouteUpdaterTicker := a.createUpdaterTicker(&a.domainRouteUpdater, a.domainRouteInterval*time.Second)
+	go func() {
+		for {
+			res := <-domainRouteUpdaterTicker.Result
+			if res.Error != nil {
+				printError(res.Error)
+				continue
+			}
+			if res.Result {
+				fmt.Println("Updated!")
+			}
+		}
+	}()
 
 	if ok, err = a.keeneticUpdater.Init(
 		config.KeeneticHost,
@@ -97,14 +128,26 @@ func (a *App) Init(config AppConfig) {
 		return
 	}
 	a.SetKeeneticInterval(time.Duration(config.KeeneticInterval))
-	keeneticUpdaterTimer, keeneticUpdaterQuit := a.createUpdaterTicker(&a.keeneticUpdater, a.keeneticIntercal*time.Second)
+	keeneticUpdaterTicker := a.createUpdaterTicker(&a.keeneticUpdater, a.keeneticIntercal*time.Second)
+	go func() {
+		for {
+			res := <-keeneticUpdaterTicker.Result
+			if res.Error != nil {
+				printError(res.Error)
+				continue
+			}
+			if res.Result {
+				fmt.Println("Updated!")
+			}
+		}
+	}()
 
 	time.Sleep(8 * time.Second)
-	domainRouteUpdaterTimer <- 1 * time.Second
-	keeneticUpdaterTimer <- 1 * time.Second
+	domainRouteUpdaterTicker.TimerUpdate <- 1 * time.Second
+	domainRouteUpdaterTicker.TimerUpdate <- 1 * time.Second
 	time.Sleep(5 * time.Second)
-	domainRouteUpdaterQuit <- true
-	keeneticUpdaterQuit <- true
+	domainRouteUpdaterTicker.Quit <- true
+	domainRouteUpdaterTicker.Quit <- true
 	time.Sleep(1 * time.Second)
 
 	//_, err = a.keeneticUpdater.Tick()
