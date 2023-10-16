@@ -3,12 +3,14 @@ package main
 import (
 	"errors"
 	"fmt"
+	"github.com/Ponywka/go-keenetic-dns-router/internal/interfaces"
 	"github.com/Ponywka/go-keenetic-dns-router/internal/updaters"
 	"github.com/Ponywka/go-keenetic-dns-router/pkg/errors/contextedError"
 	"github.com/Ponywka/go-keenetic-dns-router/pkg/errors/parentError"
 	"github.com/Ponywka/go-keenetic-dns-router/pkg/routes"
 	"github.com/caarlos0/env/v6"
 	"github.com/joho/godotenv"
+	"time"
 )
 
 func printError(err error) {
@@ -39,9 +41,29 @@ type AppConfig struct {
 
 type App struct {
 	domainRouteUpdater  updaters.DomainRouteUpdater
-	domainRouteInterval int64
+	domainRouteInterval time.Duration
 	keeneticUpdater     updaters.KeeneticUpdater
-	keeneticIntercal    int64
+	keeneticIntercal    time.Duration
+}
+
+func (a *App) createUpdaterTicker(updater interfaces.Updater, d time.Duration) (timerUpdate chan time.Duration, quit chan bool) {
+	ticker := time.NewTicker(d)
+	timerUpdate = make(chan time.Duration)
+	quit = make(chan bool)
+	go func() {
+		for {
+			select {
+			case <-ticker.C:
+				// TODO: Error handler
+				_, _ = updater.Tick()
+			case d := <-timerUpdate:
+				ticker.Reset(d)
+			case <-quit:
+				return
+			}
+		}
+	}()
+	return
 }
 
 func (a *App) Init(config AppConfig) {
@@ -62,7 +84,8 @@ func (a *App) Init(config AppConfig) {
 	a.domainRouteUpdater.MaxTTL = config.DomainTtlMax
 	a.domainRouteUpdater.MinTTL = config.DomainTtlMin
 	a.domainRouteUpdater.DefaultTTL = config.DomainTtlDefault
-	a.SetDomainRouteInterval(config.DomainInterval)
+	a.SetDomainRouteInterval(time.Duration(config.DomainInterval))
+	domainRouteUpdaterTimer, domainRouteUpdaterQuit := a.createUpdaterTicker(&a.domainRouteUpdater, a.domainRouteInterval*time.Second)
 
 	if ok, err = a.keeneticUpdater.Init(
 		config.KeeneticHost,
@@ -73,24 +96,33 @@ func (a *App) Init(config AppConfig) {
 		printError(err)
 		return
 	}
-	a.SetKeeneticInterval(config.KeeneticInterval)
+	a.SetKeeneticInterval(time.Duration(config.KeeneticInterval))
+	keeneticUpdaterTimer, keeneticUpdaterQuit := a.createUpdaterTicker(&a.keeneticUpdater, a.keeneticIntercal*time.Second)
 
-	_, err = a.keeneticUpdater.Tick()
-	if err != nil {
-		printError(err)
-	}
+	time.Sleep(8 * time.Second)
+	domainRouteUpdaterTimer <- 1 * time.Second
+	keeneticUpdaterTimer <- 1 * time.Second
+	time.Sleep(5 * time.Second)
+	domainRouteUpdaterQuit <- true
+	keeneticUpdaterQuit <- true
+	time.Sleep(1 * time.Second)
 
-	fmt.Printf("%+v", a.keeneticUpdater.GetInterfaces())
-	fmt.Printf("%+v", a.keeneticUpdater.GetRoutes())
+	//_, err = a.keeneticUpdater.Tick()
+	//if err != nil {
+	//	printError(err)
+	//}
+
+	//fmt.Printf("%+v", a.keeneticUpdater.GetInterfaces())
+	//fmt.Printf("%+v", a.keeneticUpdater.GetRoutes())
 
 	_ = ok
 }
 
-func (a *App) SetKeeneticInterval(sec int64) {
+func (a *App) SetKeeneticInterval(sec time.Duration) {
 	a.keeneticIntercal = sec
 }
 
-func (a *App) SetDomainRouteInterval(sec int64) {
+func (a *App) SetDomainRouteInterval(sec time.Duration) {
 	a.domainRouteInterval = sec
 }
 
