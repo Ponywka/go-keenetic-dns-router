@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"github.com/Ponywka/go-keenetic-dns-router/internal/routes"
 	"github.com/Ponywka/go-keenetic-dns-router/internal/updaters"
-	"github.com/Ponywka/go-keenetic-dns-router/pkg/errors/parentError"
 	"time"
 )
 
@@ -31,7 +30,7 @@ func New(config *Config) error {
 	var err error
 
 	if ok, err = a.domainRouteUpdater.Init(config.DomainServer, domains); err != nil {
-		return parentError.New("domainRouteUpdater initialization error", &err)
+		return fmt.Errorf("domainRouteUpdater initialization error: %w", err)
 	}
 	for _, domain := range domains {
 		a.domainRouteUpdater.Add(domain)
@@ -44,7 +43,7 @@ func New(config *Config) error {
 		for {
 			res := <-domainRouteUpdaterTicker.Result
 			if res.Error != nil {
-				printError(res.Error)
+				fmt.Println(res.Error.Error())
 				continue
 			}
 			if res.Result {
@@ -58,14 +57,14 @@ func New(config *Config) error {
 		config.KeeneticLogin,
 		config.KeeneticPassword,
 	); err != nil {
-		return parentError.New("keeneticUpdater initialization error", &err)
+		return fmt.Errorf("keeneticUpdater initialization error: %w", err)
 	}
 	keeneticUpdaterTicker := createUpdaterTicker(&a.keeneticUpdater, time.Duration(config.KeeneticInterval)*time.Second)
 	go func() {
 		for {
 			res := <-keeneticUpdaterTicker.Result
 			if res.Error != nil {
-				printError(res.Error)
+				fmt.Println(res.Error.Error())
 				continue
 			}
 			if res.Result {
@@ -84,7 +83,7 @@ func New(config *Config) error {
 
 	//_, err = a.keeneticUpdater.Tick()
 	//if err != nil {
-	//	printError(err)
+	//	fmt.Println(err.Error())
 	//}
 
 	//fmt.Printf("%+v", a.keeneticUpdater.GetInterfaces())

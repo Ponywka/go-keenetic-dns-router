@@ -1,8 +1,8 @@
 package updaters
 
 import (
-	"github.com/Ponywka/go-keenetic-dns-router/pkg/errors/contextedError"
-	"github.com/Ponywka/go-keenetic-dns-router/pkg/errors/parentError"
+	"errors"
+	"fmt"
 	"github.com/Ponywka/go-keenetic-dns-router/pkg/keenetic"
 	"log"
 )
@@ -27,18 +27,18 @@ func (u *KeeneticUpdater) Init(host, login, password string) (bool, error) {
 	u.client = keenetic.New(host)
 	ok, err := u.client.Auth(login, password)
 	if err != nil {
-		return false, parentError.New("auth error", &err)
+		return false, fmt.Errorf("auth error: %w", err)
 	}
 	if !ok {
-		return false, contextedError.New("login or password invalid")
+		return false, errors.New("login or password invalid")
 	}
 	u.interfaces, err = u.client.GetInterfaceList()
 	if err != nil {
-		return false, contextedError.New("getting interfaces error")
+		return false, errors.New("getting interfaces error")
 	}
 	u.routes, err = u.client.GetRouteList()
 	if err != nil {
-		return false, contextedError.New("getting routes error")
+		return false, errors.New("getting routes error")
 	}
 	return true, nil
 }

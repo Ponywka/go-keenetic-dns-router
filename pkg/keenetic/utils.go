@@ -2,9 +2,8 @@ package keenetic
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
-	"github.com/Ponywka/go-keenetic-dns-router/pkg/errors/contextedError"
-	"github.com/Ponywka/go-keenetic-dns-router/pkg/errors/parentError"
 	"io"
 	"net/http"
 	"reflect"
@@ -14,8 +13,7 @@ func apiSyncRequest(method string, url string, data []byte, headers map[string]s
 	client := &http.Client{}
 	req, err := http.NewRequest(method, url, bytes.NewBuffer(data))
 	if err != nil {
-		err = contextedError.NewFromFunc(&err, http.NewRequest)
-		err = parentError.New("http creating error", &err)
+		err = fmt.Errorf("http creating error: %w", err)
 		return
 	}
 	for key, val := range headers {
@@ -23,8 +21,7 @@ func apiSyncRequest(method string, url string, data []byte, headers map[string]s
 	}
 	resp, err = client.Do(req)
 	if err != nil {
-		err = contextedError.NewFromFunc(&err, client.Do)
-		err = parentError.New("client creating error", &err)
+		err = fmt.Errorf("client creating error: %w", err)
 		return
 	}
 	defer func() {
@@ -32,8 +29,7 @@ func apiSyncRequest(method string, url string, data []byte, headers map[string]s
 	}()
 	body, err = io.ReadAll(resp.Body)
 	if err != nil {
-		err = contextedError.NewFromFunc(&err, io.ReadAll)
-		err = parentError.New("body reading error", &err)
+		err = fmt.Errorf("body reading error: %w", err)
 		return
 	}
 	return
@@ -50,7 +46,7 @@ func parseCookies(rawCookies string) []*http.Cookie {
 func convertMapToStruct(data map[string]interface{}, obj interface{}) error {
 	objValue := reflect.ValueOf(obj)
 	if objValue.Kind() != reflect.Ptr || objValue.IsNil() {
-		return contextedError.New("wrong struct type")
+		return errors.New("wrong struct type")
 	}
 
 	objValue = objValue.Elem()
@@ -71,7 +67,7 @@ func convertMapToStruct(data map[string]interface{}, obj interface{}) error {
 		}
 
 		if !field.CanSet() {
-			return contextedError.New(fmt.Sprintf("field '%s' is unavailable to write", fieldName))
+			return errors.New(fmt.Sprintf("field '%s' is unavailable to write", fieldName))
 		}
 
 		if err := setFieldValue(field, fieldValue); err != nil {
@@ -90,7 +86,7 @@ func setFieldValue(field reflect.Value, fieldValue interface{}) error {
 		sliceElemType := fieldType.Elem()
 
 		if reflect.TypeOf(fieldValue).Kind() != reflect.Slice {
-			return contextedError.New("field slice type mismatch")
+			return errors.New("field slice type mismatch")
 		}
 
 		slice := reflect.MakeSlice(fieldType, 0, 0)
@@ -107,7 +103,7 @@ func setFieldValue(field reflect.Value, fieldValue interface{}) error {
 
 	case reflect.Struct:
 		if reflect.TypeOf(fieldValue).Kind() != reflect.Map {
-			return contextedError.New("field struct type mismatch")
+			return errors.New("field struct type mismatch")
 		}
 
 		structValue := reflect.New(fieldType).Elem()
@@ -120,7 +116,7 @@ func setFieldValue(field reflect.Value, fieldValue interface{}) error {
 		fieldValueOfType := reflect.ValueOf(fieldValue)
 
 		if !fieldValueOfType.Type().ConvertibleTo(fieldType) {
-			return contextedError.New("field type mismatch")
+			return errors.New("field type mismatch")
 		}
 
 		field.Set(fieldValueOfType.Convert(fieldType))
@@ -140,7 +136,7 @@ func convertMapToSliceWithType(inputData interface{}, itemConverter func(map[str
 				mapData = append(mapData, itemInterface)
 			}
 		default:
-			return nil, contextedError.New("parse error")
+			return nil, errors.New("parse error")
 		}
 	}
 
@@ -148,12 +144,12 @@ func convertMapToSliceWithType(inputData interface{}, itemConverter func(map[str
 	for _, itemInterface := range mapData {
 		itemMap, ok := itemInterface.(map[string]interface{})
 		if !ok {
-			return nil, contextedError.New("parse error")
+			return nil, errors.New("parse error")
 		}
 
 		item, err := itemConverter(itemMap)
 		if err != nil {
-			return nil, contextedError.New("item conversion error")
+			return nil, errors.New("item conversion error")
 		}
 
 		list = append(list, item)

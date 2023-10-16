@@ -4,9 +4,8 @@ import (
 	"crypto/md5"
 	"crypto/sha256"
 	"encoding/json"
+	"errors"
 	"fmt"
-	"github.com/Ponywka/go-keenetic-dns-router/pkg/errors/contextedError"
-	"github.com/Ponywka/go-keenetic-dns-router/pkg/errors/parentError"
 	"net/http"
 	"strings"
 )
@@ -37,14 +36,13 @@ func (u *Client) apiRequest(method, path string, data interface{}) (resp *http.R
 
 	jsonData, err := json.Marshal(data)
 	if err != nil {
-		err = contextedError.NewFromFunc(&err, json.Marshal)
-		err = parentError.New("json encoding error", &err)
+		err = fmt.Errorf("json encoding error: %w", err)
 		return
 	}
 
 	resp, outBody, err := apiSyncRequest(method, fmt.Sprintf("%s/%s", u.host, path), jsonData, headers)
 	if err != nil {
-		err = parentError.New("api requesting error", &err)
+		err = fmt.Errorf("api requesting error: %w", err)
 		return
 	}
 
@@ -55,8 +53,7 @@ func (u *Client) apiRequest(method, path string, data interface{}) (resp *http.R
 	if len(outBody) > 0 {
 		err = json.Unmarshal(outBody, &body)
 		if err != nil {
-			err = contextedError.NewFromFunc(&err, json.Unmarshal)
-			err = parentError.New("json decoding error", &err)
+			err = fmt.Errorf("json decoding error: %w", err)
 			return
 		}
 	}
@@ -67,7 +64,7 @@ func (u *Client) resetAuth() (data AuthData, err error) {
 	u.cookies = make(map[string]string)
 	resp, _, err := u.apiRequest("GET", "auth", nil)
 	if err != nil {
-		err = parentError.New("api requesting error", &err)
+		err = fmt.Errorf("api requesting error: %w", err)
 		return
 	}
 	data = AuthData{
@@ -80,7 +77,7 @@ func (u *Client) resetAuth() (data AuthData, err error) {
 func (u *Client) checkAuth() (res bool, err error) {
 	resp, _, err := u.apiRequest("GET", "auth", nil)
 	if err != nil {
-		err = parentError.New("api requesting error", &err)
+		err = fmt.Errorf("api requesting error", &err)
 		return
 	}
 	res = resp.StatusCode == 200
@@ -90,7 +87,7 @@ func (u *Client) checkAuth() (res bool, err error) {
 func (u *Client) Auth(login, password string) (res bool, err error) {
 	authData, err := u.resetAuth()
 	if err != nil {
-		err = parentError.New("auth reset error", &err)
+		err = fmt.Errorf("auth reset error: %w", err)
 		return
 	}
 
@@ -104,7 +101,7 @@ func (u *Client) Auth(login, password string) (res bool, err error) {
 		"password": passHash,
 	})
 	if err != nil {
-		err = parentError.New("auth error", &err)
+		err = fmt.Errorf("auth error: %w", err)
 		return
 	}
 
@@ -119,25 +116,25 @@ func (u *Client) Rci(data interface{}) (res []interface{}, err error) {
 	for {
 		resp, body, err := u.apiRequest("POST", "rci/", data)
 		if err != nil {
-			return nil, parentError.New("api requesting error", &err)
+			return nil, fmt.Errorf("api requesting error: %w", err)
 		}
 		if resp.StatusCode != 401 {
 			res, ok := body.([]interface{})
 			if !ok {
-				return nil, contextedError.New("parse error")
+				return nil, errors.New("parse error")
 			}
 			return res, nil
 		}
 		if wasAuthorizationAttempt {
-			return nil, contextedError.New("unauthorized")
+			return nil, errors.New("unauthorized")
 		}
 		wasAuthorizationAttempt = true
 		ok, err := u.Auth(u.login, u.password)
 		if err != nil {
-			return nil, parentError.New("reauth error", &err)
+			return nil, fmt.Errorf("reauth error: %w", err)
 		}
 		if !ok {
-			return nil, contextedError.New("reauth error")
+			return nil, errors.New("reauth error")
 		}
 	}
 }
@@ -150,7 +147,7 @@ func (u *Client) ToRciQueryList(list *[]map[string]interface{}, path string, dat
 	outData := map[string]interface{}{}
 	for i := len(pathSplitted) - 1; i >= 0; i-- {
 		if len(pathSplitted[i]) == 0 {
-			return contextedError.New("empty path name was detected")
+			return errors.New("empty path name was detected")
 		}
 		if i == len(pathSplitted)-1 {
 			outData = map[string]interface{}{pathSplitted[i]: data}
@@ -166,22 +163,22 @@ func (u *Client) getByRciQuery(path string, data interface{}) (res interface{}, 
 	var list []map[string]interface{}
 	err = u.ToRciQueryList(&list, path, data)
 	if err != nil {
-		return nil, parentError.New("list generating error", &err)
+		return nil, fmt.Errorf("list generating error: %w", err)
 	}
 
 	body, err := u.Rci(list)
 	if err != nil {
-		return nil, parentError.New("rci request error", &err)
+		return nil, fmt.Errorf("rci request error: %w", err)
 	}
 
 	if len(body) == 0 {
-		return nil, contextedError.New("parse error")
+		return nil, errors.New("parse error")
 	}
 	res = body[0]
 	for _, key := range strings.Split(path, ".") {
 		v, ok := res.(map[string]interface{})
 		if !ok {
-			return nil, contextedError.New("parse error")
+			return nil, errors.New("parse error")
 		}
 		res = v[key]
 	}
@@ -191,12 +188,12 @@ func (u *Client) getByRciQuery(path string, data interface{}) (res interface{}, 
 func (u *Client) getListByRciQuery(query string, data any, itemConverter func(map[string]interface{}) (interface{}, error)) ([]interface{}, error) {
 	body, err := u.getByRciQuery(query, data)
 	if err != nil {
-		return nil, parentError.New("rci request error", &err)
+		return nil, fmt.Errorf("rci request error: %w", err)
 	}
 
 	list, err := convertMapToSliceWithType(body, itemConverter)
 	if err != nil {
-		return nil, parentError.New("conversation error", &err)
+		return nil, fmt.Errorf("conversation error: %w", err)
 	}
 
 	return list, nil
@@ -216,7 +213,7 @@ func (u *Client) GetInterfaceList() ([]InterfaceBase, error) {
 	for _, val := range list {
 		v, ok := val.(InterfaceBase)
 		if !ok {
-			return nil, contextedError.New("parse error")
+			return nil, errors.New("parse error")
 		}
 		listMap = append(listMap, v)
 	}
@@ -238,7 +235,7 @@ func (u *Client) GetRouteList() ([]Route, error) {
 	for _, val := range list {
 		v, ok := val.(Route)
 		if !ok {
-			return nil, contextedError.New("parse error")
+			return nil, errors.New("parse error")
 		}
 		listMap = append(listMap, v)
 	}
