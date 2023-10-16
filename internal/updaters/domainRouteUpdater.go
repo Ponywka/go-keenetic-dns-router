@@ -72,14 +72,14 @@ func (u *DomainRouteUpdater) resolveDomains() bool {
 	return isUpdated
 }
 
-func (u *DomainRouteUpdater) Init(dnsServer string, domains []routes.DomainRoute) (bool, error) {
+func (u *DomainRouteUpdater) Init(dnsServer string, domains []routes.DomainRoute) error {
 	u.Resolver = dns.NewResolver(dnsServer)
 	u.Domains = make(map[string]routes.DomainRouteExtended)
 	for _, domain := range domains {
 		u.Add(domain)
 	}
 	u.resolveDomains()
-	return true, nil
+	return nil
 }
 
 func (u *DomainRouteUpdater) Tick() (bool, error) {

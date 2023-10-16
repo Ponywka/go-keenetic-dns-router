@@ -26,67 +26,56 @@ func New(config *Config) error {
 		{Domain: "yandex.ru"},
 	}
 
-	var ok bool
-	var err error
-
-	if ok, err = a.domainRouteUpdater.Init(config.DomainServer, domains); err != nil {
+	if err := a.domainRouteUpdater.Init(config.DomainServer, domains); err != nil {
 		return fmt.Errorf("domainRouteUpdater initialization error: %w", err)
+	} else {
+		a.domainRouteUpdater.MaxTTL = config.DomainTtlMax
+		a.domainRouteUpdater.MinTTL = config.DomainTtlMin
+		a.domainRouteUpdater.DefaultTTL = config.DomainTtlDefault
+		a.domainRouteUpdaterTicker = createUpdaterTicker(&a.domainRouteUpdater, time.Duration(config.DomainInterval)*time.Second)
+		go func() {
+			for {
+				res := <-a.domainRouteUpdaterTicker.Result
+				if res.Error != nil {
+					fmt.Println(res.Error.Error())
+					continue
+				}
+				if res.Result {
+					fmt.Println("Updated!")
+				}
+			}
+		}()
 	}
-	a.domainRouteUpdater.MaxTTL = config.DomainTtlMax
-	a.domainRouteUpdater.MinTTL = config.DomainTtlMin
-	a.domainRouteUpdater.DefaultTTL = config.DomainTtlDefault
-	domainRouteUpdaterTicker := createUpdaterTicker(&a.domainRouteUpdater, time.Duration(config.DomainInterval)*time.Second)
-	go func() {
-		for {
-			res := <-domainRouteUpdaterTicker.Result
-			if res.Error != nil {
-				fmt.Println(res.Error.Error())
-				continue
-			}
-			if res.Result {
-				fmt.Println("Updated!")
-			}
-		}
-	}()
 
-	if ok, err = a.keeneticUpdater.Init(
+	if err := a.keeneticUpdater.Init(
 		config.KeeneticHost,
 		config.KeeneticLogin,
 		config.KeeneticPassword,
 	); err != nil {
 		return fmt.Errorf("keeneticUpdater initialization error: %w", err)
+	} else {
+		a.keeneticUpdaterTicker = createUpdaterTicker(&a.keeneticUpdater, time.Duration(config.KeeneticInterval)*time.Second)
+		go func() {
+			for {
+				res := <-a.keeneticUpdaterTicker.Result
+				if res.Error != nil {
+					fmt.Println(res.Error.Error())
+					continue
+				}
+				if res.Result {
+					fmt.Println("Updated!")
+				}
+			}
+		}()
 	}
-	keeneticUpdaterTicker := createUpdaterTicker(&a.keeneticUpdater, time.Duration(config.KeeneticInterval)*time.Second)
-	go func() {
-		for {
-			res := <-keeneticUpdaterTicker.Result
-			if res.Error != nil {
-				fmt.Println(res.Error.Error())
-				continue
-			}
-			if res.Result {
-				fmt.Println("Updated!")
-			}
-		}
-	}()
 
 	time.Sleep(8 * time.Second)
-	domainRouteUpdaterTicker.TickerReset <- 1 * time.Second
-	domainRouteUpdaterTicker.TickerReset <- 1 * time.Second
+	a.domainRouteUpdaterTicker.TickerReset <- 1 * time.Second
+	a.domainRouteUpdaterTicker.TickerReset <- 1 * time.Second
 	time.Sleep(5 * time.Second)
-	domainRouteUpdaterTicker.TickerStop <- true
-	domainRouteUpdaterTicker.TickerStop <- true
+	a.domainRouteUpdaterTicker.TickerStop <- true
+	a.domainRouteUpdaterTicker.TickerStop <- true
 	time.Sleep(1 * time.Second)
-
-	//_, err = a.keeneticUpdater.Tick()
-	//if err != nil {
-	//	fmt.Println(err.Error())
-	//}
-
-	//fmt.Printf("%+v", a.keeneticUpdater.GetInterfaces())
-	//fmt.Printf("%+v", a.keeneticUpdater.GetRoutes())
-
-	_ = ok
 
 	return nil
 }
