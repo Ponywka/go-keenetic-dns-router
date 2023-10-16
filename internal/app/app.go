@@ -74,11 +74,11 @@ func New(config *Config) error {
 	}()
 
 	time.Sleep(8 * time.Second)
-	domainRouteUpdaterTicker.TimerUpdate <- 1 * time.Second
-	domainRouteUpdaterTicker.TimerUpdate <- 1 * time.Second
+	domainRouteUpdaterTicker.TickerReset <- 1 * time.Second
+	domainRouteUpdaterTicker.TickerReset <- 1 * time.Second
 	time.Sleep(5 * time.Second)
-	domainRouteUpdaterTicker.Quit <- true
-	domainRouteUpdaterTicker.Quit <- true
+	domainRouteUpdaterTicker.TickerStop <- true
+	domainRouteUpdaterTicker.TickerStop <- true
 	time.Sleep(1 * time.Second)
 
 	//_, err = a.keeneticUpdater.Tick()

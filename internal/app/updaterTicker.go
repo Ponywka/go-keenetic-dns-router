@@ -11,16 +11,16 @@ type updaterTickResult struct {
 }
 
 type updaterTicker struct {
-	TimerUpdate chan time.Duration
-	Quit        chan bool
+	TickerReset chan time.Duration
+	TickerStop  chan bool
 	Result      chan updaterTickResult
 }
 
 func createUpdaterTicker(updater interfaces.Updater, d time.Duration) (ut updaterTicker) {
 	ticker := time.NewTicker(d)
 	ut = updaterTicker{
-		TimerUpdate: make(chan time.Duration),
-		Quit:        make(chan bool),
+		TickerReset: make(chan time.Duration),
+		TickerStop:  make(chan bool),
 		Result:      make(chan updaterTickResult),
 	}
 	go func() {
@@ -32,11 +32,10 @@ func createUpdaterTicker(updater interfaces.Updater, d time.Duration) (ut update
 					Result: res,
 					Error:  err,
 				}
-			case d := <-ut.TimerUpdate:
+			case d := <-ut.TickerReset:
 				ticker.Reset(d)
-			case <-ut.Quit:
+			case <-ut.TickerStop:
 				ticker.Stop()
-				break
 			}
 		}
 	}()
